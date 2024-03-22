@@ -20,24 +20,27 @@ class MLMDataMasker():
 
     def __call__(self, instance):
 
-        tokens = [t for t in instance if not t == self.special_token_ids['pad']] # quick hack to match base code.
-        input_mask = [self.special_token_ids['mask']]*len(tokens)
+        tokens = [t for t in instance if not t == self.special_token_ids.index('pad')] # quick hack to match base code.
+        input_mask = [self.special_token_ids.index('mask')]*len(tokens)
 
         n_pred = min(self.max_pred, max(1, int(round(len(tokens)*self.mask_prob))))
 
         masked_tokens, masked_pos = [], []
-        masked_weights = [self.special_token_ids['mask']]*n_pred # when n_pred < max_pred, we only calculate loss within n_pred
 
         candidate_positions = [i for i, token in enumerate(tokens)
-                               if token not in self.special_token_ids.values()]
+                               if token not in self.special_token_ids]
         shuffle(candidate_positions)
         for pos in candidate_positions[:n_pred]:
             masked_tokens.append(tokens[pos])
             masked_pos.append(pos)
             if rand() < 0.8: # 80%
-                tokens[pos] = self.special_token_ids['mask']
+                tokens[pos] = self.special_token_ids.index('mask')
             elif rand() < 0.5: # 10%
-                tokens[pos] = self.token_vocab[randint(0, len(self.token_vocab)-1)]
+                random_token = tokens[0]
+                while random_token in tokens: random_token = randint(0, len(self.token_vocab)-1)
+                tokens[pos] = random_token
+
+        masked_weights = [self.special_token_ids.index('mask')]*len(masked_tokens) # when n_pred < max_pred, we only calculate loss within n_pred
 
         # Token indexing
         input_ids = self.indexer(tokens)
@@ -45,15 +48,15 @@ class MLMDataMasker():
 
         # Padding
         n_pad = self.max_len - len(input_ids)
-        input_ids.extend([self.special_token_ids['pad']]*n_pad)
-        input_mask.extend([self.special_token_ids['pad']]*n_pad)
+        input_ids.extend([self.special_token_ids.index('pad')]*n_pad)
+        input_mask.extend([self.special_token_ids.index('pad')]*n_pad)
 
         # Padding for masked target
         if n_pred < self.max_pred:
             n_pad = self.max_pred - n_pred
-            masked_ids.extend([self.special_token_ids['pad']]*n_pad)
-            masked_pos.extend([self.special_token_ids['pad']]*n_pad)
-            masked_weights.extend([self.special_token_ids['pad']]*n_pad)
+            masked_ids.extend([self.special_token_ids.index('pad')]*n_pad)
+            masked_pos.extend([self.special_token_ids.index('pad')]*n_pad)
+            masked_weights.extend([self.special_token_ids.index('pad')]*n_pad)
 
         return (input_ids, input_mask, masked_ids, masked_pos, masked_weights)
 

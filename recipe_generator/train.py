@@ -30,10 +30,10 @@ class Config(NamedTuple):
     def from_json(cls, file): # load config from json file
         return cls(**json.load(open(file, "r")))
 
-def main(train_cfg='../config/train.json',
-          model_cfg='../config/bert_base.json',
-          recipes_file='../../data/local/final/partial/recipe_food_ids/0.npy',
-          food_vectors_file='../../data/local/final/full/food_compounds/0.npy'):
+def main(train_cfg='./config/train.json',
+          model_cfg='./config/bert_base.json',
+          recipes_file='../data/local/final/full/recipe_food_ids/0.npy',
+          food_vectors_file='../data/local/final/full/food_compounds/0.npy'):
     
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     train_cfg = Config.from_json(train_cfg)
@@ -44,44 +44,52 @@ def main(train_cfg='../config/train.json',
     food_vectors = np.load(food_vectors_file)
     recipes = np.load(recipes_file)
 
+    print("Loaded data", food_vectors.shape, recipes.shape)
+
     # set special token indexes
-    special_token_ids = {
-      'pad': food_vectors.shape[0]-3, 'unknown': food_vectors.shape[0]-2, 'mask': food_vectors.shape[0]-1
-    }
+    special_token_ids = ['pad','mask','unknown']
     
     food_vectors = torch.tensor(food_vectors, dtype=torch.float)
-    vocab_size = len(food_vectors)
-    n_dim = food_vectors.shape[1]
 
     preprocess_pipeline = [data.MLMDataMasker(
-        max_pred=2,
+        max_pred=1,
         mask_prob=0.15,
-        max_len=15,
+        max_len=model_cfg.max_len,
         indexer=data.convert_tokens_to_ids,
         token_vocab=range(0,len(food_vectors)-1),
         special_token_ids=special_token_ids
     )]
 
-    dataset = data.MaskedRecipeDataset(recipes, preprocess_pipeline)
-    dataloader = DataLoader(dataset, batch_size=10, shuffle=True, num_workers=2)
+    cv_ratio = 0.8
+    np.random.shuffle(recipes)
+    data_train, data_validation = recipes[:int(cv_ratio*len(recipes))], recipes[int(cv_ratio*len(recipes)):]
+    train_ds, validation_dl = data.MaskedRecipeDataset(data_train, preprocess_pipeline), data.MaskedRecipeDataset(data_validation, preprocess_pipeline), 
+    train_dl, validation_dl = DataLoader(train_ds, batch_size=train_cfg.batch_size, shuffle=True, num_workers=2), DataLoader(validation_dl, batch_size=train_cfg.batch_size, shuffle=False, num_workers=2)
+
+    print(len(train_dl))
 
     bert_model = model.BertModel4Pretrain(model_cfg, food_vectors)
     bert_model.to(device)
 
+    print(sum(p.numel() for p in bert_model.parameters())/1e6, 'M parameters')
+
     loss_func = nn.CrossEntropyLoss(reduction='none')
-    adam_optimiser = optimiser.optim4GPU(train_cfg, bert_model).to(device)
+    adam_optimiser = optimiser.optim4GPU(train_cfg, bert_model)
 
     training_metrics = []
+    total_step = 0
 
     for epoch in range(train_cfg.n_epochs):
         
-        for i, batch in enumerate(tqdm(dataloader)):
+        for i, batch in enumerate(tqdm(train_dl)):
 
-            batch = next(iter(dataloader))
+            # loading data onto device
             batch = [x.to(device) for x in batch]
             input_ids, input_mask, masked_ids, masked_pos, masked_weights = batch
+            # print('inputs:', *[(b, b.shape) for b in batch], sep='\n')
 
-            # print('inputs:', *batch, sep='\n')
+            # training
+            bert_model.train()
             output = bert_model(input_ids, input_mask, masked_pos)
 
             adam_optimiser.zero_grad()
@@ -90,12 +98,31 @@ def main(train_cfg='../config/train.json',
             loss.backward()
             adam_optimiser.step()
             
-            if i % train_cfg.save_steps == 0:
-                training_metrics.append({
-                    'epoch': epoch, 'step': i, 'loss': loss.item()
-                })
+            total_step += 1
+
+            # evaluation
+            if i % train_cfg.save_steps == 0 or total_step >= train_cfg.total_steps:
+
+                with torch.no_grad():
+
+                    bert_model.eval()
+                    batch = next(iter(validation_dl))
+                    batch = [x.to(device) for x in batch]
+
+                    bert_model.eval()
+                    input_ids, input_mask, masked_ids, masked_pos, masked_weights = batch
+
+                    output = bert_model(input_ids, input_mask, masked_pos)
+                    validation_loss = loss_func(output.transpose(1, 2), masked_ids)
+                    validation_loss = (loss*masked_weights.float()).mean()
+                    training_metrics.append({
+                        'epoch': epoch, 'total_step': total_step, 'train_loss': loss.item(), 'validation_loss': validation_loss.item()
+                    })
     
-    with open('train_metrics.pickle', 'wb') as f:
+                if total_step >= train_cfg.total_steps: return
+
+    
+    with open('./outputs/train_metrics.pickle', 'wb') as f:
         pickle.dump(training_metrics, f)
 
 
