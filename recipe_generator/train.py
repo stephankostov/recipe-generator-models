@@ -9,7 +9,7 @@ import torch
 from torch.utils.data import DataLoader
 import torch.nn as nn
 
-import model
+import recipe_generator.bert_model as bert_model
 import data
 import optimiser
 from utils import set_seeds
@@ -37,7 +37,7 @@ def main(train_cfg='./config/train.json',
           food_vectors_file='../data/local/final/full/food_compounds/0.npy'):
     
     train_cfg = Config.from_json(train_cfg)
-    model_cfg = model.Config.from_json(model_cfg)
+    model_cfg = bert_model.Config.from_json(model_cfg)
 
     device = train_cfg.device if torch.cuda.is_available() else 'cpu'
     set_seeds(train_cfg.seed)
@@ -67,13 +67,13 @@ def main(train_cfg='./config/train.json',
     train_ds, validation_dl = data.MaskedRecipeDataset(data_train, preprocess_pipeline), data.MaskedRecipeDataset(data_validation, preprocess_pipeline), 
     train_dl, validation_dl = DataLoader(train_ds, batch_size=train_cfg.batch_size, shuffle=True, num_workers=2), DataLoader(validation_dl, batch_size=train_cfg.batch_size, shuffle=False, num_workers=2)
 
-    bert_model = model.BertModel4Pretrain(model_cfg, food_vectors)
-    bert_model.to(device)
+    model = bert_model.BertModel4Pretrain(model_cfg, food_vectors)
+    model.to(device)
 
-    print(sum(p.numel() for p in bert_model.parameters())/1e6, 'M parameters')
+    print(sum(p.numel() for p in model.parameters())/1e6, 'M parameters')
 
     loss_func = nn.CrossEntropyLoss(reduction='none')
-    adam_optimiser = optimiser.optim4GPU(train_cfg, bert_model)
+    adam_optimiser = optimiser.optim4GPU(train_cfg, model)
 
     training_metrics = []
     global_step = 0
@@ -88,8 +88,8 @@ def main(train_cfg='./config/train.json',
             # print('inputs:', *[(b, b.shape) for b in batch], sep='\n')
 
             # training
-            bert_model.train()
-            output = bert_model(input_ids, input_mask, masked_pos)
+            model.train()
+            output = model(input_ids, input_mask, masked_pos)
 
             adam_optimiser.zero_grad()
             loss = loss_func(output.transpose(1, 2), masked_ids)
@@ -109,23 +109,26 @@ def main(train_cfg='./config/train.json',
 
                     input_ids, input_mask, masked_ids, masked_pos, masked_weights = batch
 
-                    bert_model.eval()
-                    output = bert_model(input_ids, input_mask, masked_pos)
+                    model.eval()
+                    output = model(input_ids, input_mask, masked_pos)
 
                     validation_loss = loss_func(output.transpose(1, 2), masked_ids)
-                    validation_loss = (loss*masked_weights.float()).mean()
-                    
+                    validation_loss = (validation_loss*masked_weights.float()).mean()
+
                     training_metrics.append({
                         'epoch': epoch, 'global_step': global_step, 
                         'train_loss': loss.item(), 'validation_loss': validation_loss.item(), 
                         'learning_rate': adam_optimiser.get_lr()[0],
                         'accuracy': calculate_accuracy(output, masked_ids),
-                        'perplexity': calculate_perplexity(output, masked_ids),
+                        'perplexity': torch.exp(validation_loss.to('cpu')),
                         'input': [b.to('cpu') for b in batch],
                         'output': output.to('cpu'),
                     })
     
-                if global_step >= train_cfg.total_steps: return
+                if global_step >= train_cfg.total_steps: 
+                    with open('./outputs/train_metrics.pickle', 'wb') as f:
+                        pickle.dump(training_metrics, f)
+                    return
     
     with open('./outputs/train_metrics.pickle', 'wb') as f:
         pickle.dump(training_metrics, f)
@@ -137,11 +140,6 @@ def calculate_accuracy(model_output, labels):
     accuracy = torch.sum((preds==labels) * (labels != 0)) / torch.sum((labels != 0))
 
     return accuracy
-
-def calculate_perplexity(model_output, labels):
-    label_probabilities = model_output.gather(2, labels.unsqueeze(2))
-    normalised = torch.square(torch.log2(-torch.sum(label_probabilities) / torch.numel(labels)))
-    return normalised
 
 
 
