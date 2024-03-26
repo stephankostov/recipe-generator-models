@@ -5,3 +5,6 @@
 .log
 .vscode
 .DS_Store
+
+misc/
+outputs/

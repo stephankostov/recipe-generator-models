@@ -1,9 +1,10 @@
 {
     "seed": 1337,
-    "batch_size": 1024,
+    "batch_size": 1000,
     "lr": 1e-3,
-    "n_epochs": 5,
+    "n_epochs": 2,
     "warmup": 0.1,
     "save_steps": 100,
-    "total_steps": 100000
+    "total_steps": 100000,
+    "device": "cuda"
 }

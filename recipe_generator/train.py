@@ -25,6 +25,7 @@ class Config(NamedTuple):
     warmup: float = 0.1
     save_steps: int = 100 # interval for saving model
     total_steps: int = 100000 # total number of steps to train
+    device: str = 'cuda'
 
     @classmethod
     def from_json(cls, file): # load config from json file
@@ -35,10 +36,10 @@ def main(train_cfg='./config/train.json',
           recipes_file='../data/local/final/full/recipe_food_ids/0.npy',
           food_vectors_file='../data/local/final/full/food_compounds/0.npy'):
     
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
     train_cfg = Config.from_json(train_cfg)
     model_cfg = model.Config.from_json(model_cfg)
 
+    device = train_cfg.device if torch.cuda.is_available() else 'cpu'
     set_seeds(train_cfg.seed)
 
     food_vectors = np.load(food_vectors_file)
@@ -52,7 +53,7 @@ def main(train_cfg='./config/train.json',
     food_vectors = torch.tensor(food_vectors, dtype=torch.float)
 
     preprocess_pipeline = [data.MLMDataMasker(
-        max_pred=1,
+        max_pred=2,
         mask_prob=0.15,
         max_len=model_cfg.max_len,
         indexer=data.convert_tokens_to_ids,
@@ -66,8 +67,6 @@ def main(train_cfg='./config/train.json',
     train_ds, validation_dl = data.MaskedRecipeDataset(data_train, preprocess_pipeline), data.MaskedRecipeDataset(data_validation, preprocess_pipeline), 
     train_dl, validation_dl = DataLoader(train_ds, batch_size=train_cfg.batch_size, shuffle=True, num_workers=2), DataLoader(validation_dl, batch_size=train_cfg.batch_size, shuffle=False, num_workers=2)
 
-    print(len(train_dl))
-
     bert_model = model.BertModel4Pretrain(model_cfg, food_vectors)
     bert_model.to(device)
 
@@ -77,7 +76,7 @@ def main(train_cfg='./config/train.json',
     adam_optimiser = optimiser.optim4GPU(train_cfg, bert_model)
 
     training_metrics = []
-    total_step = 0
+    global_step = 0
 
     for epoch in range(train_cfg.n_epochs):
         
@@ -98,32 +97,51 @@ def main(train_cfg='./config/train.json',
             loss.backward()
             adam_optimiser.step()
             
-            total_step += 1
+            global_step += 1
 
             # evaluation
-            if i % train_cfg.save_steps == 0 or total_step >= train_cfg.total_steps:
+            if i % train_cfg.save_steps == 0 or global_step >= train_cfg.total_steps:
 
                 with torch.no_grad():
 
-                    bert_model.eval()
                     batch = next(iter(validation_dl))
                     batch = [x.to(device) for x in batch]
 
-                    bert_model.eval()
                     input_ids, input_mask, masked_ids, masked_pos, masked_weights = batch
 
+                    bert_model.eval()
                     output = bert_model(input_ids, input_mask, masked_pos)
+
                     validation_loss = loss_func(output.transpose(1, 2), masked_ids)
                     validation_loss = (loss*masked_weights.float()).mean()
+                    
                     training_metrics.append({
-                        'epoch': epoch, 'total_step': total_step, 'train_loss': loss.item(), 'validation_loss': validation_loss.item()
+                        'epoch': epoch, 'global_step': global_step, 
+                        'train_loss': loss.item(), 'validation_loss': validation_loss.item(), 
+                        'learning_rate': adam_optimiser.get_lr()[0],
+                        'accuracy': calculate_accuracy(output, masked_ids),
+                        'perplexity': calculate_perplexity(output, masked_ids),
+                        'input': [b.to('cpu') for b in batch],
+                        'output': output.to('cpu'),
                     })
     
-                if total_step >= train_cfg.total_steps: return
-
+                if global_step >= train_cfg.total_steps: return
     
     with open('./outputs/train_metrics.pickle', 'wb') as f:
         pickle.dump(training_metrics, f)
+
+def calculate_accuracy(model_output, labels):
+    # output: batch, n_tokens, n_predictions
+    # labels: batch, n_predictions
+    preds = torch.argmax(model_output, 2) # batch, n_predictions
+    accuracy = torch.sum((preds==labels) * (labels != 0)) / torch.sum((labels != 0))
+
+    return accuracy
+
+def calculate_perplexity(model_output, labels):
+    label_probabilities = model_output.gather(2, labels.unsqueeze(2))
+    normalised = torch.square(torch.log2(-torch.sum(label_probabilities) / torch.numel(labels)))
+    return normalised
 
 
 
