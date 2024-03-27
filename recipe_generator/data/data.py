@@ -78,3 +78,19 @@ class MaskedRecipeDataset(Dataset):
         for process_step in self.process_pipeline:
             instance = process_step(instance)
         return [torch.tensor(x, dtype=torch.long) for x in instance]
+    
+class NextTokenDataset(Dataset):
+    
+    def __init__(self, recipes):
+        self.recipes = recipes
+
+    def __len__(self):
+        return len(self.recipes) # should be able to have more than one here
+    
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx): idx = idx.to_list()
+        recipe = self.recipes[idx]
+        x = torch.tensor(recipe[0:len(recipe)-2])
+        y = torch.tensor(recipe[1:len(recipe)-1])
+        return x, y
+        

@@ -8,7 +8,7 @@ import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
 
-from utils import split_last, merge_last
+from recipe_generator.utils.utils import split_last, merge_last
 
 class Config(NamedTuple):
     "Configuration for BERT model"

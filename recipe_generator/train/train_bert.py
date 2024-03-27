@@ -9,7 +9,7 @@ import torch
 from torch.utils.data import DataLoader
 import torch.nn as nn
 
-import recipe_generator.bert_model as bert_model
+import models.bert as bert
 import data
 import optimiser
 from utils import set_seeds
@@ -37,7 +37,7 @@ def main(train_cfg='./config/train.json',
           food_vectors_file='../data/local/final/full/food_compounds/0.npy'):
     
     train_cfg = Config.from_json(train_cfg)
-    model_cfg = bert_model.Config.from_json(model_cfg)
+    model_cfg = bert.Config.from_json(model_cfg)
 
     device = train_cfg.device if torch.cuda.is_available() else 'cpu'
     set_seeds(train_cfg.seed)
@@ -67,7 +67,7 @@ def main(train_cfg='./config/train.json',
     train_ds, validation_dl = data.MaskedRecipeDataset(data_train, preprocess_pipeline), data.MaskedRecipeDataset(data_validation, preprocess_pipeline), 
     train_dl, validation_dl = DataLoader(train_ds, batch_size=train_cfg.batch_size, shuffle=True, num_workers=2), DataLoader(validation_dl, batch_size=train_cfg.batch_size, shuffle=False, num_workers=2)
 
-    model = bert_model.BertModel4Pretrain(model_cfg, food_vectors)
+    model = bert.BertModel4Pretrain(model_cfg, food_vectors)
     model.to(device)
 
     print(sum(p.numel() for p in model.parameters())/1e6, 'M parameters')
@@ -126,11 +126,11 @@ def main(train_cfg='./config/train.json',
                     })
     
                 if global_step >= train_cfg.total_steps: 
-                    with open('./outputs/train_metrics.pickle', 'wb') as f:
+                    with open('./outputs/bert/train_metrics.pickle', 'wb') as f:
                         pickle.dump(training_metrics, f)
                     return
     
-    with open('./outputs/train_metrics.pickle', 'wb') as f:
+    with open('./outputs/bert/train_metrics.pickle', 'wb') as f:
         pickle.dump(training_metrics, f)
 
 def calculate_accuracy(model_output, labels):
