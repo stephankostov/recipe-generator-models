@@ -1,3 +1,8 @@
+from pathlib import Path
+import sys
+path_root = Path(__file__).parents[1]
+sys.path.append(str(path_root))
+
 import os
 import json
 from typing import NamedTuple
@@ -12,7 +17,7 @@ import torch.nn as nn
 import models.gpt as gpt
 import data.data as data
 import optimiser.optimiser as optimiser
-from recipe_generator.utils.utils import set_seeds
+from utils.utils import set_seeds
 
 class Config(NamedTuple):
     """ Hyperparameters for training """
@@ -106,7 +111,7 @@ def main(train_cfg='./config/train.json',
                     training_metrics.append({
                         'epoch': epoch, 'global_step': global_step, 
                         'train_loss': loss.item(), 'validation_loss': validation_loss.item(), 
-                        'learning_rate': adam_optimiser.get_lr()[0],
+                        'learning_rate': adam_optimiser.param_groups[0]['lr'],
                         'accuracy': calculate_accuracy(output, yb),
                         'perplexity': torch.exp(validation_loss.to('cpu')),
                         'input': [b.to('cpu') for b in batch],
