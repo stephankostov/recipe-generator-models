@@ -1,3 +1,8 @@
+from pathlib import Path
+import sys
+path_root = Path(__file__).parents[1]
+sys.path.append(str(path_root))
+
 import os
 import json
 from typing import NamedTuple
@@ -10,9 +15,10 @@ from torch.utils.data import DataLoader
 import torch.nn as nn
 
 import models.bert as bert
-import data
-import optimiser
-from utils import set_seeds
+import data.data as data
+import optimiser.optimiser as optimiser
+from loss.cross_entropy_seq import SeqBCELoss
+from utils.utils import set_seeds
 
 class Config(NamedTuple):
     """ Hyperparameters for training """
@@ -72,7 +78,7 @@ def main(train_cfg='./config/train.json',
 
     print(sum(p.numel() for p in model.parameters())/1e6, 'M parameters')
 
-    loss_func = nn.CrossEntropyLoss(reduction='none')
+    loss_func = SeqBCELoss(model_cfg.vocab_size, reduction='none')
     adam_optimiser = optimiser.optim4GPU(train_cfg, model)
 
     training_metrics = []
@@ -92,8 +98,7 @@ def main(train_cfg='./config/train.json',
             output = model(input_ids, input_mask, masked_pos)
 
             adam_optimiser.zero_grad()
-            loss = loss_func(output.transpose(1, 2), masked_ids)
-            loss = (loss*masked_weights.float()).mean()
+            loss = loss_func(output.transpose(1, 2), masked_ids, masked_weights)
             loss.backward()
             adam_optimiser.step()
             
@@ -112,8 +117,7 @@ def main(train_cfg='./config/train.json',
                     model.eval()
                     output = model(input_ids, input_mask, masked_pos)
 
-                    validation_loss = loss_func(output.transpose(1, 2), masked_ids)
-                    validation_loss = (validation_loss*masked_weights.float()).mean()
+                    validation_loss = loss_func(output.transpose(1, 2), masked_ids, masked_weights)
 
                     training_metrics.append({
                         'epoch': epoch, 'global_step': global_step, 
@@ -129,7 +133,7 @@ def main(train_cfg='./config/train.json',
                     with open('./outputs/bert/train_metrics.pickle', 'wb') as f:
                         pickle.dump(training_metrics, f)
                     return
-    
+                    
     with open('./outputs/bert/train_metrics.pickle', 'wb') as f:
         pickle.dump(training_metrics, f)
 
