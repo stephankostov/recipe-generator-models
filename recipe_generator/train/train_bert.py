@@ -1,4 +1,8 @@
-import os
+from pathlib import Path
+import sys
+sys.path.append(str(Path(__file__).parents[1]))
+print(sys.path)
+
 import json
 from typing import NamedTuple
 import pickle
@@ -10,9 +14,9 @@ from torch.utils.data import DataLoader
 import torch.nn as nn
 
 import models.bert as bert
-import data
-import optimiser
-from utils import set_seeds
+import data.data as data
+import optimiser.optimiser as optimiser
+from utils.utils import set_seeds
 
 class Config(NamedTuple):
     """ Hyperparameters for training """
