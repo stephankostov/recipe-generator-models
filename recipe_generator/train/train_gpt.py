@@ -25,11 +25,11 @@ class Config(NamedTuple):
     batch_size: int = 32
     lr: int = 5e-5 # learning rate
     n_epochs: int = 10 # the number of epoch
-    # `warm up` period = warmup(0.1)*total_steps
+    # `warm up` period = warmup(0.1)*max_steps
     # linearly increasing learning rate from zero to the specified value(5e-5)
     warmup: float = 0.1
     save_steps: int = 100 # interval for saving model
-    total_steps: int = 100000 # total number of steps to train
+    max_steps: int = 100000 # total number of steps to train
     device: str = 'cuda'
 
     @classmethod
@@ -94,7 +94,7 @@ def main(train_cfg='./config/train.json',
             global_step += 1
 
             # evaluation
-            if i % train_cfg.save_steps == 0 or global_step >= train_cfg.total_steps:
+            if i % train_cfg.save_steps == 0 or global_step >= train_cfg.max_steps:
 
                 with torch.no_grad():
 
@@ -118,7 +118,7 @@ def main(train_cfg='./config/train.json',
                         'output': output.to('cpu'),
                     })
     
-                if global_step >= train_cfg.total_steps: 
+                if global_step >= train_cfg.max_steps: 
                     with open('./outputs/gpt/train_metrics.pickle', 'wb') as f:
                         pickle.dump(training_metrics, f)
                     return

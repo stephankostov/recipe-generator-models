@@ -157,4 +157,4 @@ def optim4GPU(cfg, model):
     return BertAdam(optimizer_grouped_parameters,
                     lr=cfg.lr,
                     warmup=cfg.warmup,
-                    t_total=cfg.total_steps)
+                    t_total=cfg.max_steps)
