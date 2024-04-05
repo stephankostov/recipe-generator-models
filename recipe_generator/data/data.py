@@ -42,7 +42,7 @@ class MLMDataMasker():
                 while random_token in tokens: random_token = randint(0, len(self.token_vocab)-1)
                 tokens[pos] = random_token
 
-        masked_weights = [self.special_token_ids.index('mask')]*len(masked_tokens) # when n_pred < max_pred, we only calculate loss within n_pred
+        masked_weights = [1]*len(masked_tokens) # when n_pred < max_pred, we only calculate loss within n_pred
 
         # Token indexing
         input_ids = self.indexer(tokens)

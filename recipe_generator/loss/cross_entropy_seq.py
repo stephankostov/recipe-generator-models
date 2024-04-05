@@ -15,15 +15,22 @@ class SeqBCELoss(nn.BCELoss):
         self.vocab_size = vocab_size
         self.vocab_weights = torch.ones([vocab_size], device='cuda')
         self.vocab_weights[0] = 0
+        self.vocab_weights[2] = 0
 
     def multi_label_one_hot(self, sequence):
         sequence = F.one_hot(sequence, self.vocab_size)
         sequence = torch.sum(sequence, axis=1).type(torch.float)
         return sequence
+    
+    def logit_transform(self, logits, target):
+        logits = torch.sum(logits, axis=2) # combine all token predictions into a single one
+        probs = F.sigmoid(logits) # activation function on logits
+        # probs = probs*self.vocab_weights # nulling special tokens
+        selected_probs = torch.gather(probs, 1, target) # calculate loss only on the target tokens
+        return selected_probs
 
     def forward(self, input, target, masked_weights):
-        input_probs = F.sigmoid(torch.sum(input, axis=2))
-        encoded_target = self.multi_label_one_hot(target)
-        loss = F.binary_cross_entropy(input_probs, encoded_target, weight=self.weight, reduction='none')
-        loss = (loss*self.vocab_weights).mean() # only account for target variables (target) and hide padding (vocab_weights)
+        probs = self.logit_transform(input, target)
+        loss = F.binary_cross_entropy(probs, torch.ones((probs.shape), device='cuda'), weight=self.weight, reduction='none')
+        loss = (loss*masked_weights).mean()
         return loss

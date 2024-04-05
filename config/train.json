@@ -2,9 +2,9 @@
     "seed": 1337,
     "batch_size": 1000,
     "lr": 1e-3,
-    "n_epochs": 1,
+    "n_epochs": 3,
     "warmup": 0.1,
     "save_steps": 100,
-    "total_steps": 100000,
+    "total_steps": 5000,
     "device": "cuda"
 }
