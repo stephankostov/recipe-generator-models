@@ -81,16 +81,28 @@ class MaskedRecipeDataset(Dataset):
     
 class NextTokenDataset(Dataset):
     
-    def __init__(self, recipes):
+    def __init__(self, recipes, max_len):
         self.recipes = recipes
+        self.max_len = max_len
 
     def __len__(self):
         return len(self.recipes) # should be able to have more than one here
     
     def __getitem__(self, idx):
+
         if torch.is_tensor(idx): idx = idx.to_list()
         recipe = self.recipes[idx]
+
+        recipe = [food for food in recipe if food != 0]
+        recipe_len = len(recipe)
+        pad_count = self.max_len - recipe_len - 1
+        end_token = [3] if pad_count>=0 else []
+        recipe = recipe + end_token + [0]*pad_count
+        assert len(recipe) == self.max_len
+
         x = torch.tensor(recipe[0:len(recipe)-2])
         y = torch.tensor(recipe[1:len(recipe)-1])
-        return x, y
+        mask_ids = torch.tensor([1 if food_id != 0 else 0 for food_id in y])
+
+        return x, y, mask_ids
         

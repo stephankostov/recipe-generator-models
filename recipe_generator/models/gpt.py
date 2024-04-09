@@ -114,6 +114,7 @@ class GPTLanguageModel(nn.Module):
         self.blocks = nn.Sequential(*[Block(cfg) for _ in range(cfg.n_layers)])
         self.ln_f = nn.LayerNorm(cfg.n_embd) # final layer norm
         self.lm_head = nn.Linear(cfg.n_embd, cfg.vocab_size)
+        self.block_size = cfg.block_size
 
         # better init, not covered in the original GPT video, but important, will cover in followup video
         self.apply(self._init_weights)
@@ -143,7 +144,7 @@ class GPTLanguageModel(nn.Module):
             # crop idx to the last block_size tokens
             idx_cond = idx[:, -self.block_size:]
             # get the predictions
-            logits, loss = self(idx_cond)
+            logits = self(idx_cond)
             # focus only on the last time step
             logits = logits[:, -1, :] # becomes (B, C)
             # apply softmax to get probabilities
