@@ -131,14 +131,12 @@ def main(train_cfg='./config/train.json',
 
                     if train_cfg.wandb: wandb.log(eval_metrics)
                     training_metrics.append(eval_metrics)
+
+                    save(model, training_metrics)
     
-                if global_step >= train_cfg.total_steps:
-                    with open('./outputs/gpt/train_metrics.pickle', 'wb') as f: pickle.dump(training_metrics, f)
-                    torch.save(model, './outputs/gpt/model.pt')
-                    return
+                if global_step >= train_cfg.total_steps: return
     
-    with open('./outputs/gpt/train_metrics.pickle', 'wb') as f: pickle.dump(training_metrics, f)
-    torch.save(model, './outputs/gpt/model.pt')
+    save(model, training_metrics)
 
 def calculate_accuracy(model_output, labels):
     # output: batch, n_tokens, n_predictions
@@ -148,6 +146,9 @@ def calculate_accuracy(model_output, labels):
 
     return accuracy
 
+def save(model, training_metrics):
+    with open('./outputs/gpt/train_metrics.pickle', 'wb') as f: pickle.dump(training_metrics, f)
+    torch.save(model, './outputs/gpt/model.pt')
 
 
 if __name__ == '__main__':
