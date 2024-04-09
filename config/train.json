@@ -5,6 +5,6 @@
     "n_epochs": 3,
     "warmup": 0.1,
     "save_steps": 100,
-    "total_steps": 5000,
+    "total_steps": 500,
     "device": "cuda"
 }

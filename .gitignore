@@ -6,5 +6,7 @@
 .vscode
 .DS_Store
 
+wandb/
+
 misc/
 outputs/
