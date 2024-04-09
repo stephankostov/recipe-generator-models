@@ -34,6 +34,7 @@ class Config(NamedTuple):
     save_steps: int = 100 # interval for saving model
     total_steps: int = 100000 # total number of steps to train
     device: str = 'cuda'
+    wanbd: bool = True
 
     @classmethod
     def from_json(cls, file): # load config from json file
@@ -48,13 +49,6 @@ def main(train_cfg='./config/train.json',
     train_cfg = Config.from_json(train_cfg)
     model_cfg = gpt.Config.from_json(model_cfg)
 
-    wandb.init(
-        project='recipe-generator-gpt',
-        config={
-            'model_cfg': model_cfg._asdict(),
-            'train_cfg': train_cfg._asdict()
-        }
-    )
     set_seeds(train_cfg.seed)
 
     food_vectors = np.load(food_vectors_file)
@@ -73,7 +67,15 @@ def main(train_cfg='./config/train.json',
     model = gpt.GPTLanguageModel(model_cfg, food_vectors)
     model.to(train_cfg.device)
 
-    wandb.watch(model, log_freq=100)
+    if train_cfg.wandb: 
+        wandb.init(
+            project='recipe-generator-gpt',
+            config={
+                'model_cfg': model_cfg._asdict(),
+                'train_cfg': train_cfg._asdict()
+            }
+        )
+        wandb.watch(model, log_freq=train_cfg.save_steps)
 
     print(sum(p.numel() for p in model.parameters())/1e6, 'M parameters')
 
@@ -117,7 +119,7 @@ def main(train_cfg='./config/train.json',
 
                     validation_loss = loss_func(output.transpose(1,2), yb, mask)
 
-                    wandb.log({
+                    eval_metrics = {
                         'epoch': epoch, 'global_step': global_step, 
                         'train_loss': loss.item(), 'validation_loss': validation_loss.item(), 
                         'learning_rate': adam_optimiser.param_groups[0]['lr'],
@@ -125,19 +127,12 @@ def main(train_cfg='./config/train.json',
                         'perplexity': torch.exp(validation_loss.to('cpu')),
                         'input': [b.to('cpu') for b in batch],
                         'output': output.to('cpu'),
-                    })
+                    }
 
-                    training_metrics.append({
-                        'epoch': epoch, 'global_step': global_step, 
-                        'train_loss': loss.item(), 'validation_loss': validation_loss.item(), 
-                        'learning_rate': adam_optimiser.param_groups[0]['lr'],
-                        'accuracy': calculate_accuracy(output, yb),
-                        'perplexity': torch.exp(validation_loss.to('cpu')),
-                        'input': [b.to('cpu') for b in batch],
-                        'output': output.to('cpu'),
-                    })
+                    if train_cfg.wandb: wandb.log(eval_metrics)
+                    training_metrics.append(eval_metrics)
     
-                if global_step >= train_cfg.total_steps: 
+                if global_step >= train_cfg.total_steps:
                     with open('./outputs/gpt/train_metrics.pickle', 'wb') as f: pickle.dump(training_metrics, f)
                     torch.save(model, './outputs/gpt/model.pt')
                     return
