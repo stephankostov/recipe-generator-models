@@ -34,7 +34,7 @@ class Config(NamedTuple):
     save_steps: int = 100 # interval for saving model
     total_steps: int = 100000 # total number of steps to train
     device: str = 'cuda'
-    wanbd: bool = True
+    wandb: bool = True
 
     @classmethod
     def from_json(cls, file): # load config from json file
@@ -128,11 +128,11 @@ def main(train_cfg='./config/train.json',
                         'input': [b.to('cpu') for b in batch],
                         'output': output.to('cpu'),
                     }
-
+                    
                     if train_cfg.wandb: wandb.log(eval_metrics)
                     training_metrics.append(eval_metrics)
 
-                    save(model, training_metrics)
+                    # save(model, training_metrics)
     
                 if global_step >= train_cfg.total_steps: return
     
@@ -148,8 +148,7 @@ def calculate_accuracy(model_output, labels):
 
 def save(model, training_metrics):
     with open('./outputs/gpt/train_metrics.pickle', 'wb') as f: pickle.dump(training_metrics, f)
-    torch.save(model, './outputs/gpt/model.pt')
-
+    torch.save(model.state_dict(), './outputs/gpt/model.pt')
 
 if __name__ == '__main__':
     main()
