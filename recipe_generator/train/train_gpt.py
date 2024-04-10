@@ -134,9 +134,11 @@ def main(train_cfg='./config/train.json',
 
                     # save(model, training_metrics)
     
-                if global_step >= train_cfg.total_steps: return
+                if global_step >= train_cfg.max_steps: 
+                    save(model, training_metrics, train_cfg.device)
+                    return
     
-    save(model, training_metrics)
+    save(model, training_metrics, train_cfg.device)
 
 def calculate_accuracy(model_output, labels):
     # output: batch, n_tokens, n_predictions 
@@ -152,9 +154,11 @@ def calculate_accuracy(model_output, labels):
 
     return accuracy
 
-def save(model, training_metrics):
+def save(model, training_metrics, device):
     with open('./outputs/gpt/train_metrics.pickle', 'wb') as f: pickle.dump(training_metrics, f)
+    model.to('cpu')
     torch.save(model.state_dict(), './outputs/gpt/model.pt')
+    model.to(device)
 
 if __name__ == '__main__':
     main()
