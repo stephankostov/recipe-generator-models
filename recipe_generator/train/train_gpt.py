@@ -139,10 +139,16 @@ def main(train_cfg='./config/train.json',
     save(model, training_metrics)
 
 def calculate_accuracy(model_output, labels):
-    # output: batch, n_tokens, n_predictions
+    # output: batch, n_tokens, n_predictions 
     # labels: batch, n_predictions
     preds = torch.argmax(model_output, 2) # batch, n_predictions
-    accuracy = torch.sum((preds==labels) * (labels != 0)) / torch.sum((labels != 0))
+    match_results = torch.zeros(labels.shape, device=labels.device)
+    for i in range(labels.shape[1]):
+        label = labels[:,i]
+        match = preds.eq(label.unsqueeze(1)).any(1) * (label != 0) # B
+        match_results[:,i] = match
+
+    accuracy = (match_results).sum() / (labels != 0).sum()
 
     return accuracy
 
