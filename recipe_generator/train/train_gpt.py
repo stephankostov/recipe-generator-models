@@ -147,10 +147,10 @@ def calculate_accuracy(model_output, labels):
     match_results = torch.zeros(labels.shape, device=labels.device)
     for i in range(labels.shape[1]):
         label = labels[:,i]
-        match = preds.eq(label.unsqueeze(1)).any(1) * (label != 0) # B
+        match = preds.eq(label.unsqueeze(1)).any(1) * ((label != 0) * (label != 3)) # B
         match_results[:,i] = match
 
-    accuracy = (match_results).sum() / (labels != 0).sum()
+    accuracy = (match_results).sum() / ((labels != 0) * (labels != 3)).sum()
 
     return accuracy
 
