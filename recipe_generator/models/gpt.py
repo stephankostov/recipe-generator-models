@@ -88,8 +88,8 @@ class Block(nn.Module):
         super().__init__()
         self.sa = MultiHeadAttention(cfg)
         self.ffwd = FeedFoward(cfg)
-        self.ln1 = nn.LayerNorm(cfg.n_embd)
-        self.ln2 = nn.LayerNorm(cfg.n_embd)
+        self.ln1 = nn.LayerNorm(cfg.n_embd, eps=1e-2)
+        self.ln2 = nn.LayerNorm(cfg.n_embd, eps=1e-2)
 
     def forward(self, x):
         x = x + self.sa(self.ln1(x))
@@ -97,12 +97,27 @@ class Block(nn.Module):
         return x
     
 class CompoundConcentrationEmbeddings(nn.Module):
+
     def __init__(self, cfg, food_vectors):
         super().__init__()
-        self.molecule_embedding = nn.Embedding(cfg.vocab_size, cfg.n_embd, _weight=food_vectors, _freeze=True, device=cfg.device) #TODO: see if this makes a difference
+        self.special_token_embeddings = nn.Embedding.from_pretrained(self.init_special_token_weights(food_vectors), padding_idx=0, freeze=False)
+        self.molecule_embedding = nn.Embedding.from_pretrained(torch.cat((torch.zeros((self.special_token_embeddings.weight.shape[0],food_vectors.shape[1])),food_vectors)), freeze=True)
+
+    def init_special_token_weights(self, food_embeddings):
+        weights = torch.stack((
+            torch.zeros((food_embeddings.shape[1])), 
+            torch.ones((food_embeddings.shape[1])), 
+            food_embeddings[3:].mean(axis=0),
+            torch.rand((food_embeddings.shape[1]))))
+        return weights
 
     def forward(self, x):
-        e = self.molecule_embedding(x)
+
+        special_tokens_mask = x < 4
+        special_token_selection = x.clone()
+        special_token_selection[~special_tokens_mask] = 0
+
+        e = self.molecule_embedding(x) + self.special_token_embeddings(special_token_selection)
         return e
     
 class GPTLanguageModel(nn.Module):
@@ -114,6 +129,7 @@ class GPTLanguageModel(nn.Module):
         self.blocks = nn.Sequential(*[Block(cfg) for _ in range(cfg.n_layers)])
         self.ln_f = nn.LayerNorm(cfg.n_embd) # final layer norm
         self.lm_head = nn.Linear(cfg.n_embd, cfg.vocab_size)
+        self.block_size = cfg.block_size
 
         # better init, not covered in the original GPT video, but important, will cover in followup video
         self.apply(self._init_weights)
@@ -123,8 +139,8 @@ class GPTLanguageModel(nn.Module):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
             if module.bias is not None:
                 torch.nn.init.zeros_(module.bias)
-        elif isinstance(module, nn.Embedding):
-            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+        # elif isinstance(module, nn.Embedding):
+        #     torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
     def forward(self, idx):
         B, T = idx.shape
@@ -143,7 +159,7 @@ class GPTLanguageModel(nn.Module):
             # crop idx to the last block_size tokens
             idx_cond = idx[:, -self.block_size:]
             # get the predictions
-            logits, loss = self(idx_cond)
+            logits = self(idx_cond)
             # focus only on the last time step
             logits = logits[:, -1, :] # becomes (B, C)
             # apply softmax to get probabilities

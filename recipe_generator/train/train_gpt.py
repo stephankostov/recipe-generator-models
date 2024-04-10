@@ -1,6 +1,6 @@
 from pathlib import Path
 import sys
-path_root = Path(__file__).parents[1]
+path_root = Path(__file__).parents[2]
 sys.path.append(str(path_root))
 
 import os
@@ -14,10 +14,13 @@ import torch
 from torch.utils.data import DataLoader
 import torch.nn as nn
 
-import models.gpt as gpt
-import data.data as data
-import optimiser.optimiser as optimiser
-from utils.utils import set_seeds
+import wandb
+
+import recipe_generator.models.gpt as gpt
+import recipe_generator.data.data as data
+import recipe_generator.optimiser.optimiser as optimiser
+from recipe_generator.loss.EISL import EISL
+from recipe_generator.utils.utils import set_seeds
 
 class Config(NamedTuple):
     """ Hyperparameters for training """
@@ -31,10 +34,12 @@ class Config(NamedTuple):
     save_steps: int = 100 # interval for saving model
     max_steps: int = 100000 # total number of steps to train
     device: str = 'cuda'
+    wandb: bool = True
 
     @classmethod
     def from_json(cls, file): # load config from json file
         return cls(**json.load(open(file, "r")))
+    
 
 def main(train_cfg='./config/train.json',
           model_cfg='./config/gpt_base.json',
@@ -44,31 +49,37 @@ def main(train_cfg='./config/train.json',
     train_cfg = Config.from_json(train_cfg)
     model_cfg = gpt.Config.from_json(model_cfg)
 
-    device = train_cfg.device if torch.cuda.is_available() else 'cpu'
     set_seeds(train_cfg.seed)
 
     food_vectors = np.load(food_vectors_file)
     recipes = np.load(recipes_file)
 
     print("Loaded data", food_vectors.shape, recipes.shape)
-
-    # set special token indexes
-    special_token_ids = ['pad','mask','unknown']
     
     food_vectors = torch.tensor(food_vectors, dtype=torch.float)
 
     cv_ratio = 0.8
     np.random.shuffle(recipes)
     data_train, data_validation = recipes[:int(cv_ratio*len(recipes))], recipes[int(cv_ratio*len(recipes)):]
-    train_ds, validation_ds = data.NextTokenDataset(data_train), data.NextTokenDataset(data_validation), 
+    train_ds, validation_ds = data.NextTokenDataset(data_train, model_cfg.block_size), data.NextTokenDataset(data_validation, model_cfg.block_size), 
     train_dl, validation_dl = DataLoader(train_ds, batch_size=train_cfg.batch_size, shuffle=True, num_workers=2), DataLoader(validation_ds, batch_size=train_cfg.batch_size, shuffle=False, num_workers=2)
-    
+
     model = gpt.GPTLanguageModel(model_cfg, food_vectors)
-    model.to(device)
+    model.to(train_cfg.device)
+
+    if train_cfg.wandb: 
+        wandb.init(
+            project='recipe-generator-gpt',
+            config={
+                'model_cfg': model_cfg._asdict(),
+                'train_cfg': train_cfg._asdict()
+            }
+        )
+        wandb.watch(model, log_freq=train_cfg.save_steps)
 
     print(sum(p.numel() for p in model.parameters())/1e6, 'M parameters')
 
-    loss_func = nn.CrossEntropyLoss()
+    loss_func = EISL(1.0, 0.0)
     adam_optimiser = torch.optim.AdamW(model.parameters(), lr=train_cfg.lr)
 
     training_metrics = []
@@ -79,15 +90,15 @@ def main(train_cfg='./config/train.json',
         for i, batch in enumerate(tqdm(train_dl)):
 
             # loading data onto device
-            batch = [x.to(device) for x in batch]
-            xb, yb = batch
+            batch = [x.to(train_cfg.device) for x in batch]
+            xb, yb, mask = batch
 
             # training
             model.train()
             output = model(xb)
 
             adam_optimiser.zero_grad(set_to_none=True)
-            loss = loss_func(output.transpose(1,2), yb)
+            loss = loss_func(output.transpose(1,2), yb, mask)
             loss.backward()
             adam_optimiser.step()
             
@@ -99,16 +110,16 @@ def main(train_cfg='./config/train.json',
                 with torch.no_grad():
 
                     batch = next(iter(validation_dl))
-                    batch = [x.to(device) for x in batch]
+                    batch = [x.to(train_cfg.device) for x in batch]
 
-                    xb, yb = batch
+                    xb, yb, mask = batch
 
                     model.eval()
                     output = model(xb)
 
-                    validation_loss = loss_func(output.transpose(1,2), yb)
+                    validation_loss = loss_func(output.transpose(1,2), yb, mask)
 
-                    training_metrics.append({
+                    eval_metrics = {
                         'epoch': epoch, 'global_step': global_step, 
                         'train_loss': loss.item(), 'validation_loss': validation_loss.item(), 
                         'learning_rate': adam_optimiser.param_groups[0]['lr'],
@@ -116,15 +127,16 @@ def main(train_cfg='./config/train.json',
                         'perplexity': torch.exp(validation_loss.to('cpu')),
                         'input': [b.to('cpu') for b in batch],
                         'output': output.to('cpu'),
-                    })
+                    }
+                    
+                    if train_cfg.wandb: wandb.log(eval_metrics)
+                    training_metrics.append(eval_metrics)
+
+                    # save(model, training_metrics)
     
-                if global_step >= train_cfg.max_steps: 
-                    with open('./outputs/gpt/train_metrics.pickle', 'wb') as f:
-                        pickle.dump(training_metrics, f)
-                    return
+                if global_step >= train_cfg.total_steps: return
     
-    with open('./outputs/gpt/train_metrics.pickle', 'wb') as f:
-        pickle.dump(training_metrics, f)
+    save(model, training_metrics)
 
 def calculate_accuracy(model_output, labels):
     # output: batch, n_tokens, n_predictions
@@ -134,7 +146,9 @@ def calculate_accuracy(model_output, labels):
 
     return accuracy
 
-
+def save(model, training_metrics):
+    with open('./outputs/gpt/train_metrics.pickle', 'wb') as f: pickle.dump(training_metrics, f)
+    torch.save(model.state_dict(), './outputs/gpt/model.pt')
 
 if __name__ == '__main__':
     main()

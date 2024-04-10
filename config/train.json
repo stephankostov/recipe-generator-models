@@ -4,7 +4,8 @@
     "lr": 1e-3,
     "n_epochs": 3,
     "warmup": 0.1,
-    "save_steps": 100,
-    "max_steps": 1000,
-    "device": "cuda"
+    "save_steps": 10,
+    "total_steps": 1e9,
+    "device": "cuda",
+    "wandb": true
 }
