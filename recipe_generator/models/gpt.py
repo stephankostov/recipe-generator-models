@@ -6,22 +6,16 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 class Config(NamedTuple):
-    "Configuration for BERT model"
-    vocab_size: int = None # Size of Vocabulary
-    n_embd: int = 768 # Dimension of Hidden Layer in Transformer Encoder
+
+    vocab_size: int = 1000 # Size of Vocabulary
+    n_embd: int = 400 # Dimension of Hidden Layer in Transformer Encoder
     n_layers: int = 12 # Numher of Hidden Layers
     n_heads: int = 12 # Numher of Heads in Multi-Headed Attention Layers
     head_size: int = n_embd // n_heads # Dimension of Intermediate Layers in Positionwise Feedforward Net
-    #activ_fn: str = "gelu" # Non-linear Activation Function Type in Hidden Layers
     p_drop_hidden: float = 0.1 # Probability of Dropout of various Hidden Layers
     p_drop_attn: float = 0.1 # Probability of Dropout of Attention Layers
-    block_size: int = 512 # Maximum Length for Positional Embeddings
-    device: str = 'cuda'
-
-
-    @classmethod
-    def from_json(cls, file):
-        return cls(**json.load(open(file, "r")))
+    block_size: int = 15 # Maximum Length for Positional Embeddings
+    device: str = 'cpu'
 
 class Head(nn.Module):
     """ one head of self-attention """
@@ -88,8 +82,8 @@ class Block(nn.Module):
         super().__init__()
         self.sa = MultiHeadAttention(cfg)
         self.ffwd = FeedFoward(cfg)
-        self.ln1 = nn.LayerNorm(cfg.n_embd, eps=1e-2)
-        self.ln2 = nn.LayerNorm(cfg.n_embd, eps=1e-2)
+        self.ln1 = nn.LayerNorm(cfg.n_embd)
+        self.ln2 = nn.LayerNorm(cfg.n_embd)
 
     def forward(self, x):
         x = x + self.sa(self.ln1(x))
@@ -98,21 +92,12 @@ class Block(nn.Module):
     
 class CompoundConcentrationEmbeddings(nn.Module):
 
-    def __init__(self, cfg, food_vectors):
+    def __init__(self, cfg, food_embeddings, special_token_embeddings):
         super().__init__()
-        self.special_token_embeddings = nn.Embedding.from_pretrained(self.init_special_token_weights(food_vectors), padding_idx=0, freeze=False)
-        self.molecule_embedding = nn.Embedding.from_pretrained(torch.cat((torch.zeros((self.special_token_embeddings.weight.shape[0],food_vectors.shape[1])),food_vectors)), freeze=True)
-
-    def init_special_token_weights(self, food_embeddings):
-        weights = torch.stack((
-            torch.zeros((food_embeddings.shape[1])), 
-            torch.ones((food_embeddings.shape[1])), 
-            food_embeddings[3:].mean(axis=0),
-            torch.rand((food_embeddings.shape[1]))))
-        return weights
+        self.special_token_embeddings = nn.Embedding.from_pretrained(torch.tensor(special_token_embeddings).float(), padding_idx=0, freeze=False)
+        self.molecule_embedding = nn.Embedding.from_pretrained(torch.tensor(food_embeddings).float(), freeze=True)
 
     def forward(self, x):
-
         special_tokens_mask = x < 4
         special_token_selection = x.clone()
         special_token_selection[~special_tokens_mask] = 0
@@ -122,10 +107,10 @@ class CompoundConcentrationEmbeddings(nn.Module):
     
 class GPTLanguageModel(nn.Module):
 
-    def __init__(self, cfg, food_vectors):
+    def __init__(self, cfg, food_embeddings, special_token_embeddings):
         super().__init__()
         # each token directly reads off the logits for the next token from a lookup table
-        self.food_embeddings = CompoundConcentrationEmbeddings(cfg, food_vectors)
+        self.food_embeddings = CompoundConcentrationEmbeddings(cfg, food_embeddings, special_token_embeddings)
         self.blocks = nn.Sequential(*[Block(cfg) for _ in range(cfg.n_layers)])
         self.ln_f = nn.LayerNorm(cfg.n_embd) # final layer norm
         self.lm_head = nn.Linear(cfg.n_embd, cfg.vocab_size)

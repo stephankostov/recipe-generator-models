@@ -5,6 +5,9 @@
 import os
 import random
 import logging
+import contextlib
+import io
+import sys
 
 import numpy as np
 import torch
@@ -36,3 +39,14 @@ def merge_last(x, n_dims):
     s = x.size()
     assert n_dims > 1 and n_dims < len(s)
     return x.view(*s[:-n_dims], -1)
+
+@contextlib.contextmanager
+def nostdout():
+    save_stdout = io.StringIO()
+    sys.stdout = save_stdout
+    yield
+    sys.stdout = sys.__stdout__
+
+def debugger_is_active():
+    """Return if the debugger is currently active"""
+    return hasattr(sys, 'gettrace') and sys.gettrace() is not None

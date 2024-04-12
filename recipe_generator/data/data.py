@@ -100,8 +100,8 @@ class NextTokenDataset(Dataset):
         recipe = recipe + end_token + [0]*pad_count
         assert len(recipe) == self.max_len
 
-        x = torch.tensor(recipe[0:len(recipe)-2])
-        y = torch.tensor(recipe[1:len(recipe)-1])
+        x = torch.tensor(recipe[0:len(recipe)-1])
+        y = torch.tensor(recipe[1:len(recipe)])
         mask_ids = torch.tensor([1 if food_id != 0 else 0 for food_id in y])
 
         return x, y, mask_ids
