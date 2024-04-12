@@ -15,13 +15,12 @@ import torch
 from torch.utils.data import DataLoader
 import torch.nn as nn
 
-
 import wandb
 
 import recipe_generator.models.gpt as gpt
 import recipe_generator.data.data as data
 import recipe_generator.optimiser.optimiser as optimiser
-from recipe_generator.loss.max_pool_loss import MaxPoolCELoss
+from recipe_generator.loss.cross_entropy_mask import MaskedCrossEntropyLoss
 from recipe_generator.utils.utils import set_seeds, nostdout
 
 from recipe_generator.config.gpt import GPTConfig
@@ -63,7 +62,7 @@ def main(recipes_file='../data/local/final/full/recipe_food_ids/0.npy',
 
     print(sum(p.numel() for p in model.parameters())/1e6, 'M parameters')
 
-    loss_func = MaxPoolCELoss()
+    loss_func = MaskedCrossEntropyLoss()
     adam_optimiser = torch.optim.AdamW(model.parameters(), lr=train_cfg.lr)
 
     training_metrics = []
@@ -181,7 +180,7 @@ def sample_generations(model, foods, device):
     for i, food_id in enumerate(base_food_ids):
         context = (torch.ones((5,1), dtype=torch.long)*food_id).to(device)
         generations = model.generate(context, 14).to('cpu')
-        sample_results[i:i+5] = foods[generations]
+        sample_results[i*5:i+5] = foods[generations]
 
     sample_results = pd.DataFrame(sample_results, dtype='string')
 
