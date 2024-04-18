@@ -8,6 +8,8 @@ import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
 
+from recipe_generator.models.embed import FoodEmbeddings
+
 from utils.utils import split_last, merge_last
 
 class Config(NamedTuple):
@@ -44,12 +46,9 @@ class LayerNorm(nn.Module):
 # NOTE: not used but take note of normalisation that is done.
 class Embeddings(nn.Module):
     "The embedding module from word, position and token_type embeddings."
-    def __init__(self, cfg):
+    def __init__(self, cfg, food_embeddings, special_token_embeddings):
         super().__init__()
-        self.tok_embed = nn.Embedding(cfg.vocab_size, cfg.dim) # token embedding
-        self.pos_embed = nn.Embedding(cfg.max_len, cfg.dim) # position embedding
-        self.seg_embed = nn.Embedding(cfg.n_segments, cfg.dim) # segment(token type) embedding
-
+        self.tok_embed = FoodEmbeddings(cfg, food_embeddings, special_token_embeddings) # token embedding
         self.norm = LayerNorm(cfg)
         self.drop = nn.Dropout(cfg.p_drop_hidden)
 
@@ -59,17 +58,6 @@ class Embeddings(nn.Module):
         pos = pos.unsqueeze(0).expand_as(x) # (S,) -> (B, S)
 
         e = self.tok_embed(x) + self.pos_embed(pos) + self.seg_embed(seg)
-        return self.drop(self.norm(e))
-    
-class CompoundConcentrationEmbeddings(nn.Module):
-    def __init__(self, cfg, food_vectors):
-        super().__init__()
-        self.molecule_embedding = nn.Embedding(cfg.vocab_size, cfg.dim, _weight=food_vectors, _freeze=True)
-        self.norm = LayerNorm(cfg)
-        self.drop = nn.Dropout(cfg.p_drop_hidden)
-
-    def forward(self, x):
-        e = self.molecule_embedding(x)
         return self.drop(self.norm(e))
 
 
@@ -141,9 +129,9 @@ class Block(nn.Module):
 
 class Transformer(nn.Module):
     """ Transformer with Self-Attentive Blocks"""
-    def __init__(self, cfg, food_vectors):
+    def __init__(self, cfg, food_embeddings, special_token_embeddings):
         super().__init__()
-        self.embed = CompoundConcentrationEmbeddings(cfg, food_vectors)
+        self.embed = Embeddings(cfg, food_embeddings, special_token_embeddings)
         self.norm = LayerNorm(cfg)
         self.blocks = nn.ModuleList([Block(cfg) for _ in range(cfg.n_layers)])
 
@@ -165,7 +153,7 @@ class BertModel4Pretrain(nn.Module):
         self.norm = LayerNorm(cfg)
         self.classifier = nn.Linear(cfg.dim, 2)
         # decoder is shared with embedding layer
-        embed_weight = self.transformer.embed.molecule_embedding.weight
+        embed_weight = self.transformer.embed.tok_embed.get_weights()
         n_vocab, n_dim = embed_weight.size()
         self.decoder = nn.Linear(n_dim, n_vocab, bias=False)
         self.decoder.weight = embed_weight

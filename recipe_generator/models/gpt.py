@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
+from recipe_generator.models.embed import FoodEmbeddings
+
 class Config(NamedTuple):
 
     vocab_size: int = 1000 # Size of Vocabulary
@@ -90,27 +92,12 @@ class Block(nn.Module):
         x = x + self.ffwd(self.ln2(x))
         return x
     
-class CompoundConcentrationEmbeddings(nn.Module):
-
-    def __init__(self, cfg, food_embeddings, special_token_embeddings):
-        super().__init__()
-        self.special_token_embeddings = nn.Embedding.from_pretrained(torch.tensor(special_token_embeddings).float(), padding_idx=0, freeze=False)
-        self.molecule_embedding = nn.Embedding.from_pretrained(torch.tensor(food_embeddings).float(), freeze=True)
-
-    def forward(self, x):
-        special_tokens_mask = x < 4
-        special_token_selection = x.clone()
-        special_token_selection[~special_tokens_mask] = 0
-
-        e = self.molecule_embedding(x) + self.special_token_embeddings(special_token_selection)
-        return e
-    
 class GPTLanguageModel(nn.Module):
 
     def __init__(self, cfg, food_embeddings, special_token_embeddings):
         super().__init__()
         # each token directly reads off the logits for the next token from a lookup table
-        self.food_embeddings = CompoundConcentrationEmbeddings(cfg, food_embeddings, special_token_embeddings)
+        self.food_embeddings = FoodEmbeddings(cfg, food_embeddings, special_token_embeddings)
         self.blocks = nn.Sequential(*[Block(cfg) for _ in range(cfg.n_layers)])
         self.ln_f = nn.LayerNorm(cfg.n_embd) # final layer norm
         self.lm_head = nn.Linear(cfg.n_embd, cfg.vocab_size)
