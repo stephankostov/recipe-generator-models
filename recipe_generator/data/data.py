@@ -105,4 +105,34 @@ class NextTokenDataset(Dataset):
         mask_ids = torch.tensor([1 if food_id != 0 else 0 for food_id in y])
 
         return x, y, mask_ids
-        
+    
+class WeightsDataset(Dataset):
+
+    def __init__(self, recipe_foods, recipe_weights, max_len):
+        self.recipe_foods = recipe_foods
+        self.recipe_weights = recipe_weights
+        self.max_len = max_len
+
+    def __len__(self):
+        return len(self.recipe_foods)
+    
+    def __getitem__(self, idx):
+
+        if torch.is_tensor(idx): idx = idx.to_list()
+
+        foods = self.recipe_foods[idx]
+        weights = self.recipe_weights[idx]
+
+        pad_idxs = np.where(foods == 0)[0]
+        if pad_idxs.size: foods[pad_idxs[0]] = 3
+
+        assert len(foods) == len(weights) == self.max_len 
+        assert np.isclose(weights[pad_idxs], 0).all(), print(foods, weights)
+
+        x = torch.tensor(foods, dtype=torch.int)
+        y = torch.tensor(weights, dtype=torch.float)
+
+        mask_ids = torch.ones(foods.shape, dtype=torch.float)
+        mask_ids[pad_idxs] = 0
+
+        return x, y, mask_ids

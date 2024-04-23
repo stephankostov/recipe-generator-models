@@ -9,8 +9,7 @@ import numpy as np
 import torch.nn.functional as F
 
 from recipe_generator.models.embed import FoodEmbeddings
-
-from utils.utils import split_last, merge_last
+from recipe_generator.utils.utils import split_last, merge_last
 
 class Config(NamedTuple):
     "Configuration for BERT model"
@@ -52,12 +51,8 @@ class Embeddings(nn.Module):
         self.norm = LayerNorm(cfg)
         self.drop = nn.Dropout(cfg.p_drop_hidden)
 
-    def forward(self, x, seg):
-        seq_len = x.size(1)
-        pos = torch.arange(seq_len, dtype=torch.long, device=x.device)
-        pos = pos.unsqueeze(0).expand_as(x) # (S,) -> (B, S)
-
-        e = self.tok_embed(x) + self.pos_embed(pos) + self.seg_embed(seg)
+    def forward(self, x):
+        e = self.tok_embed(x)
         return self.drop(self.norm(e))
 
 
@@ -167,3 +162,43 @@ class BertModel4Pretrain(nn.Module):
         logits_lm = self.decoder(h_masked) + self.decoder_bias
 
         return logits_lm
+    
+class WeightConcentrationBERT(nn.Module):
+    "Bert Model for Food Concenetration Generation"
+    def __init__(self, cfg, food_embeddings, special_token_embeddings):
+        super().__init__()
+        self.transformer = Transformer(cfg, food_embeddings, special_token_embeddings)
+        self.fc = nn.Linear(cfg.dim, cfg.dim)
+        self.activ1 = nn.Tanh()
+        self.linear = nn.Linear(cfg.dim, cfg.dim)
+        self.activ2 = nn.GELU()
+        self.norm = LayerNorm(cfg)
+        self.classifier = nn.Linear(cfg.dim, 2)
+        # decoder is shared with embedding layer
+        embed_weight = self.transformer.embed.tok_embed.get_weights()
+        n_vocab, n_dim = embed_weight.size()
+        self.decoder = nn.Linear(n_dim, 1, bias=True)
+        # self.decoder.weight = nn.Parameter(embed_weight)
+        # self.decoder_bias = nn.Parameter(torch.zeros(1))
+
+        self.apply(self._init_weights)
+
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+
+    def forward(self, input_ids):
+        h = self.transformer(input_ids, mask=None)
+        # masked_pos = masked_pos[:, :, None].expand(-1, -1, h.size(-1))
+        # h_masked = torch.gather(h, 1, masked_pos)
+        h = self.norm(self.activ2(self.linear(h)))
+        logits_lm = self.decoder(h)
+        logits_lm = logits_lm.squeeze(2)
+        return logits_lm
+    
+    def predict(self, inputs):
+        logits = self(inputs)
+        activations = F.softmax(logits/5, dim=1)
+        return activations

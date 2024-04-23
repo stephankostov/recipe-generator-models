@@ -6,8 +6,8 @@ class FoodEmbeddings(nn.Module):
     "Embedding module using molecule concentration data"
     def __init__(self, cfg, food_embeddings, special_token_embeddings):
         super().__init__()
-        self.special_token_embeddings = nn.Embedding.from_pretrained(torch.tensor(special_token_embeddings).float(), padding_idx=0, freeze=False)
-        self.molecule_embedding = nn.Embedding.from_pretrained(torch.tensor(food_embeddings).float(), freeze=True)
+        self.special_token_embeddings = nn.Embedding.from_pretrained(torch.tensor(special_token_embeddings, dtype=torch.float), padding_idx=0, freeze=False)
+        self.molecule_embedding = nn.Embedding.from_pretrained(torch.tensor(food_embeddings, dtype=torch.float), freeze=True)
 
     def get_weights(self):
 
