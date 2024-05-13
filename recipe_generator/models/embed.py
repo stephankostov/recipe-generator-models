@@ -3,11 +3,12 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 class FoodEmbeddings(nn.Module):
+
     "Embedding module using molecule concentration data"
-    def __init__(self, cfg, food_embeddings, special_token_embeddings):
+    def __init__(self, embedding_weights):
         super().__init__()
-        self.special_token_embeddings = nn.Embedding.from_pretrained(torch.tensor(special_token_embeddings, dtype=torch.float), padding_idx=0, freeze=False)
-        self.molecule_embedding = nn.Embedding.from_pretrained(torch.tensor(food_embeddings, dtype=torch.float), freeze=True)
+        self.special_token_embeddings = nn.Embedding.from_pretrained(torch.tensor(embedding_weights['special_tokens'], dtype=torch.float), padding_idx=0, freeze=False)
+        self.molecule_embedding = nn.Embedding.from_pretrained(torch.tensor(embedding_weights['ingredients'], dtype=torch.float), freeze=True)
 
     def get_weights(self):
 
