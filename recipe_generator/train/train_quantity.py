@@ -58,7 +58,7 @@ def main(food_embeddings_file='../data/local/final/full/food_embeddings/0.npy',
     train_ds, validation_ds = data.WeightsDataset(recipe_foods[train_idxs], recipe_weights[train_idxs], model_cfg.max_len), data.WeightsDataset(recipe_foods[validation_idxs], recipe_weights[validation_idxs], model_cfg.max_len), 
     train_dl, validation_dl = DataLoader(train_ds, batch_size=train_cfg.batch_size, shuffle=False, num_workers=2), DataLoader(validation_ds, batch_size=train_cfg.batch_size, shuffle=False, num_workers=2)
 
-    model = IngredientWeightPredictor(embedding_weights, **model_cfg._asdict())
+    model = IngredientWeightPredictor(embedding_weights, model_cfg)
     model.to(train_cfg.device)
 
     if train_cfg.wandb: 

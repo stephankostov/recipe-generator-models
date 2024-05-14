@@ -6,11 +6,11 @@ from recipe_generator.models.embed import FoodEmbeddings
 
 class IngredientWeightPredictor(nn.Module):
 
-    def __init__(self, embedding_weights, ndim, nhead, num_encoder_layers, num_decoder_layers, **kwargs):
+    def __init__(self, embedding_weights, model_cfg):
         super(IngredientWeightPredictor, self).__init__()
-        self.embedding = FoodEmbeddings(embedding_weights)
-        self.transformer = nn.Transformer(ndim, nhead, num_encoder_layers, num_decoder_layers)
-        self.output_layer = nn.Linear(ndim, 1)  # Single-unit output for weight prediction
+        self.embedding = FoodEmbeddings(embedding_weights, model_cfg)
+        self.transformer = nn.Transformer(model_cfg.ndim, model_cfg.nhead, model_cfg.num_encoder_layers, model_cfg.num_decoder_layers, model_cfg.dim_feedforward)
+        self.output_layer = nn.Linear(model_cfg.ndim, 1)  # Single-unit output for weight prediction
 
     def forward(self, input_ids):
 

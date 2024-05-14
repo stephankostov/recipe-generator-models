@@ -92,13 +92,13 @@ class Trainer():
 
         with open(self.save_dir/'metrics.pickle', 'wb') as f: pickle.dump(self.metrics, f)
 
-        if self.wandb: 
-            with nostdout(): torch.onnx.export(self.model, batch, './outputs/weights/model.onnx')
-            self.wandb.save('./outputs/weights/model.onnx')
+        # if self.wandb: 
+        #     with nostdout(): torch.onnx.export(self.model, batch, './outputs/weights/model.onnx')
+        #     self.wandb.save('./outputs/weights/model.onnx')
 
         sample_outputs = self.sample_inference(batch, self.model_output)
-        sample_outputs.to_string(self.save_dir/'sample_output.txt')
-        if self.wandb: self.wandb.save(self.save_dir/'sample_output.txt')
+        sample_outputs.to_string(self.save_dir/f'sample_inference{self.epoch}.txt')
+        if self.wandb: self.wandb.save(self.save_dir/f'sample_inference{self.epoch}.txt')
 
         self.model.to('cpu')
         torch.save(self.model.state_dict(), self.save_dir/'model.pt')

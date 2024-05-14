@@ -8,3 +8,4 @@ class IngredientWeightsPredictorCFG(NamedTuple):
     num_encoder_layers: int = 1
     num_decoder_layers: int = 1
     max_len: int = 15
+    pos_embeds = False
