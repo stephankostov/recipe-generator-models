@@ -21,13 +21,13 @@ import torch.nn.functional as F
 import wandb
 
 import recipe_generator.models.gpt as gpt
-import recipe_generator.data.data as data
-import recipe_generator.optimiser.optimiser as optimiser
-from recipe_generator.loss.cross_entropy_mask import MaskedCrossEntropyLoss
-from recipe_generator.utils.utils import set_seeds, nostdout
+import recipe_generator.dataloaders as dataloaders
+import recipe_generator.optimiser as optimiser
+from recipe_generator.loss import MaskedCrossEntropyLoss
+from recipe_generator.utils import set_seeds, nostdout
 from recipe_generator.models.transformer import IngredientWeightPredictor
-from recipe_generator.loss.loss import MaskedMSELoss
-from recipe_generator.train.trainer import Trainer
+from recipe_generator.loss import MaskedMSELoss
+from recipe_generator.trainer import Trainer
 
 from recipe_generator.config.quantity import IngredientWeightsPredictorCFG
 from recipe_generator.config.train import TrainConfig
@@ -55,7 +55,7 @@ def main(food_embeddings_file='../data/local/final/full/food_embeddings/0.npy',
     shuffle_idx = np.random.permutation(len(recipe_foods))
     recipe_foods, recipe_weights = recipe_foods[shuffle_idx], recipe_weights[shuffle_idx]
     train_idxs, validation_idxs = range(0, round(cv_ratio*len(recipe_foods))), range(round(cv_ratio*len(recipe_foods)), len(recipe_foods))
-    train_ds, validation_ds = data.WeightsDataset(recipe_foods[train_idxs], recipe_weights[train_idxs], model_cfg.max_len), data.WeightsDataset(recipe_foods[validation_idxs], recipe_weights[validation_idxs], model_cfg.max_len), 
+    train_ds, validation_ds = dataloaders.WeightsDataset(recipe_foods[train_idxs], recipe_weights[train_idxs], model_cfg.max_len), dataloaders.WeightsDataset(recipe_foods[validation_idxs], recipe_weights[validation_idxs], model_cfg.max_len), 
     train_dl, validation_dl = DataLoader(train_ds, batch_size=train_cfg.batch_size, shuffle=False, num_workers=2), DataLoader(validation_ds, batch_size=train_cfg.batch_size, shuffle=False, num_workers=2)
 
     model = IngredientWeightPredictor(embedding_weights, model_cfg)
@@ -94,9 +94,9 @@ def baseline_loss(trainer, batch):
     return trainer.loss_func(baseline_output, yb, mask, False)
 
 
-def sample_inference(model_input, model_output, foods):
+def sample_inference(trainer, model_input, foods):
 
-    input, target, mask, output = (*model_input, F.sigmoid(model_output))
+    input, target, mask, output = (*model_input, F.sigmoid(trainer.model_output))
     input, target, output = [t.detach().to('cpu') for t in [input, target, output]]
 
     results = pd.DataFrame([], columns=['input', 'target', 'output']).astype({

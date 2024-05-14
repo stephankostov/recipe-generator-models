@@ -3,7 +3,7 @@ import pickle
 
 import torch
 
-from recipe_generator.utils.utils import nostdout
+from recipe_generator.utils import nostdout
 
 class Trainer():
 
@@ -38,6 +38,7 @@ class Trainer():
 
                 if i % self.train_cfg.save_steps == 0:
                     batch = next(iter(self.validation_dl))
+                    batch = [x.to(self.train_cfg.device) for x in batch]
                     validation_loss = self.eval(batch)
                     self.metrics = self.calculate_metrics(train_loss, validation_loss, batch)
                     if self.train_cfg.wandb: self.wandb.log(self.metrics, step=self.global_step)
@@ -97,7 +98,7 @@ class Trainer():
         #     with nostdout(): torch.onnx.export(self.model, batch, './outputs/weights/model.onnx')
         #     self.wandb.save('./outputs/weights/model.onnx')
 
-        sample_outputs = self.sample_inference(batch, self.model_output)
+        sample_outputs = self.sample_inference(self, batch)
         sample_outputs.to_string(self.save_dir/f'sample_inference{self.epoch}.txt')
         if self.wandb: self.wandb.save(self.save_dir/f'sample_inference{self.epoch}.txt')
 

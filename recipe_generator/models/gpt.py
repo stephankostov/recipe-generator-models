@@ -94,10 +94,10 @@ class Block(nn.Module):
     
 class GPTLanguageModel(nn.Module):
 
-    def __init__(self, cfg, food_embeddings, special_token_embeddings):
+    def __init__(self, cfg, embedding_weights):
         super().__init__()
         # each token directly reads off the logits for the next token from a lookup table
-        self.food_embeddings = FoodEmbeddings(cfg, food_embeddings, special_token_embeddings)
+        self.food_embeddings = FoodEmbeddings(cfg, embedding_weights)
         self.blocks = nn.Sequential(*[Block(cfg) for _ in range(cfg.n_layers)])
         self.ln_f = nn.LayerNorm(cfg.n_embd) # final layer norm
         self.lm_head = nn.Linear(cfg.n_embd, cfg.vocab_size)

@@ -9,7 +9,7 @@ import numpy as np
 import torch.nn.functional as F
 
 from recipe_generator.models.embed import FoodEmbeddings
-from recipe_generator.utils.utils import split_last, merge_last
+from recipe_generator.utils import split_last, merge_last
 
 class Config(NamedTuple):
     "Configuration for BERT model"

@@ -10,5 +10,6 @@ class GPTConfig(NamedTuple):
     p_drop_hidden: float = 0.1 
     p_drop_attn: float = 0.1 
     block_size: int = 17
+    pos_embeds: bool = False
     # eisl_weight: float = 0.5
     # eisl_ngram: int = 4

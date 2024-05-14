@@ -8,7 +8,7 @@ class IngredientWeightPredictor(nn.Module):
 
     def __init__(self, embedding_weights, model_cfg):
         super(IngredientWeightPredictor, self).__init__()
-        self.embedding = FoodEmbeddings(embedding_weights, model_cfg)
+        self.embedding = FoodEmbeddings(model_cfg, embedding_weights)
         self.transformer = nn.Transformer(model_cfg.ndim, model_cfg.nhead, model_cfg.num_encoder_layers, model_cfg.num_decoder_layers, model_cfg.dim_feedforward)
         self.output_layer = nn.Linear(model_cfg.ndim, 1)  # Single-unit output for weight prediction
 

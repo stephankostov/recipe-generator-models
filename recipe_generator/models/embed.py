@@ -7,7 +7,7 @@ import math
 class FoodEmbeddings(nn.Module):
 
     "Embedding module using molecule concentration data"
-    def __init__(self, embedding_weights, model_cfg):
+    def __init__(self, model_cfg, embedding_weights):
         super().__init__()
         self.special_token_embeddings = nn.Embedding.from_pretrained(torch.tensor(embedding_weights['special_tokens'], dtype=torch.float), padding_idx=0, freeze=False)
         self.molecule_embeddings = nn.Embedding.from_pretrained(torch.tensor(embedding_weights['ingredients'], dtype=torch.float), freeze=True)

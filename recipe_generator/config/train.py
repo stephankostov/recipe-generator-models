@@ -1,5 +1,5 @@
 from typing import NamedTuple
-from recipe_generator.utils.utils import debugger_is_active
+from recipe_generator.utils import debugger_is_active
 
 class TrainConfig(NamedTuple):
     
@@ -10,4 +10,4 @@ class TrainConfig(NamedTuple):
     save_steps: int = 50
     max_steps: int = 1e9
     device: str = 'cuda'
-    wandb: bool = True and not debugger_is_active()
+    wandb: bool = False and not debugger_is_active()
