@@ -38,6 +38,9 @@ def main(recipes_file='../data/local/final/full/recipe_food_ids/0.npy',
 
     set_seeds(train_cfg.seed)
 
+    save_dir=Path('./output/ingredients/')
+    save_dir.mkdir(exist_ok=True, parents=True)
+
     recipes = np.load(recipes_file)
     embedding_weights = {
         'ingredients': torch.tensor(np.load(food_embeddings_file), dtype=torch.float), 
@@ -75,8 +78,8 @@ def main(recipes_file='../data/local/final/full/recipe_food_ids/0.npy',
         loss_func,
         metric_funcs=[calculate_accuracy],
         sample_inference=partial(sample_inference, foods=foods),
-        save_dir=Path('./output/ingredients/'),
-        wandb=wandb
+        save_dir=Path('./outputs/ingredients/'),
+        wandb=wandb if train_cfg.wandb else None
     )
 
     trainer.train()
@@ -124,9 +127,9 @@ def sample_inference(trainer, model_input, foods):
 
     sample_results = np.empty((len(base_foods)*5, 15), dtype=foods.dtype)
     for i, food_id in enumerate(base_food_ids):
-        context = (torch.ones((5,1), dtype=torch.long)*food_id).to(trainer.model.device)
+        context = (torch.ones((5,1), dtype=torch.long)*food_id).to(trainer.train_cfg.device)
         generations = trainer.model.generate(context, 14).to('cpu')
-        sample_results[i*5:i+5] = foods[generations]
+        sample_results[i*5:(i*5)+5] = foods[generations]
 
     sample_results = pd.DataFrame(sample_results, dtype='string')
 
