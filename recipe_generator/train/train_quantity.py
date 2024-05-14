@@ -63,7 +63,7 @@ def main(food_embeddings_file='../data/local/final/full/food_embeddings/0.npy',
 
     if train_cfg.wandb: 
         wandb.init(
-            project='recipe-generator-weight-test',
+            project='recipe-generator-quantity-test',
             config={ **model_cfg._asdict(), **train_cfg._asdict(), 'loss_note': 'ce_loss' }
         )
         wandb.watch(model, log_freq=train_cfg.save_steps)
@@ -115,8 +115,6 @@ def sample_inference(model_input, model_output, foods):
             results if not results.empty else None, 
             r
         ], axis=0)
-
-
 
     return results
 

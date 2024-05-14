@@ -51,6 +51,7 @@ class Trainer():
         batch = [x.to(self.train_cfg.device) for x in batch]
         xb, yb, mask = batch
 
+        self.optimiser.zero_grad(set_to_none=True)
         self.model_output = self.model(xb)
         loss = self.loss_func(self.model_output, yb, mask)
         loss.backward()

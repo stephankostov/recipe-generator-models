@@ -24,3 +24,9 @@ class IngredientWeightPredictor(nn.Module):
         weight_predictions = self.output_layer(output).squeeze(-1)
 
         return weight_predictions
+    
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
