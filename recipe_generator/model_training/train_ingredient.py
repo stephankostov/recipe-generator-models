@@ -59,7 +59,7 @@ def main(recipes_file='../data/local/final/full/recipe_food_ids/0.npy',
 
     if train_cfg.wandb: 
         wandb.init(
-            project='recipe-generator-gpt-losstest',
+            project='recipe-generator-ingredient',
             config={ **model_cfg._asdict(), **train_cfg._asdict(), 'loss_note': 'ce_loss' }
         )
         wandb.watch(model, log_freq=train_cfg.save_steps)

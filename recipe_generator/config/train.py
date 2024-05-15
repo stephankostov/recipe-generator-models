@@ -10,4 +10,4 @@ class TrainConfig(NamedTuple):
     save_steps: int = 50
     max_steps: int = 1e9
     device: str = 'cuda'
-    wandb: bool = False and not debugger_is_active()
+    wandb: bool = True and not debugger_is_active()

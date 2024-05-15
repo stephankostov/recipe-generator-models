@@ -22,6 +22,7 @@ class Trainer():
         self.global_step = 0
         self.model_output = None
         self.metrics = {}
+        # self.model_artifact = self.wandb.Artifact('model', type='model') if self.wandb else None
 
     def train(self):
 
@@ -104,6 +105,10 @@ class Trainer():
 
         self.model.to('cpu')
         torch.save(self.model.state_dict(), self.save_dir/'model.pt')
+        if self.wandb:
+            artifact = self.wandb.Artifact('model', type='model')
+            artifact.add_file(self.save_dir/'model.pt')
+            self.wandb.log_artifact(artifact)
         self.model.to(self.train_cfg.device)
 
         
