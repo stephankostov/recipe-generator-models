@@ -1,3 +1,5 @@
+print("Running app")
+
 from pathlib import Path
 import sys
 import os
@@ -20,7 +22,18 @@ from recipe_generator.config.gpt import GPTConfig
 from recipe_generator.models.transformer import IngredientWeightPredictor
 from recipe_generator.config.quantity import IngredientWeightsPredictorCFG
 
-from app.drive_api import download_gdrive_folder
+from app.gdrive_api import download_gdrive_folder
+
+print("Imported modules")
+
+# args
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+food_embeddings_file='artifacts/food_embeddings.npy'
+special_token_embeddings_file='artifacts/special_token_embeddings.npy'
+foods_file='artifacts/food_names.npy'
+ingredient_model_weights = "stephankostov/recipe-generator-ingredient/model:v23"
+quantity_model_weights = "stephankostov/recipe-generator-quantity-test/model:v89"
+
 
 @st.cache_resource
 def wandb_login():
@@ -88,26 +101,18 @@ def refresh_ingredients():
 def download_gdrive():
     download_gdrive_folder('recipe-generator', Path('artifacts'))
 
-# args
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-food_embeddings_file='artifacts/food_embeddings.npy'
-special_token_embeddings_file='artifacts/special_token_embeddings.npy'
-foods_file='artifacts/food_names.npy'
-ingredient_model_weights = "stephankostov/recipe-generator-ingredient/model:v23"
-quantity_model_weights = "stephankostov/recipe-generator-quantity-test/model:v89"
-
+print("Downloading files")
 # downloading data
 download_gdrive()
 wandb_api = wandb_login()
 
-# loading arrays
+print("Loading files")
 foods, embedding_weights = load_files()
-
-# loading models
 ingredient_model = load_model(GPTLanguageModel, GPTConfig, embedding_weights, ingredient_model_weights)
 quantity_model = load_model(IngredientWeightPredictor, IngredientWeightsPredictorCFG, embedding_weights, quantity_model_weights)
 
-# streamlit config
+
+print("Initialising streamlit page")
 # st.set_page_config(page_title="Recipe Generator", page_icon="🍳")
 
 if "recipe" not in st.session_state:
