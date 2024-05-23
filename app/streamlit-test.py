@@ -17,6 +17,9 @@ from recipe_generator.config.gpt import GPTConfig
 from recipe_generator.models.transformer import IngredientWeightPredictor
 from recipe_generator.config.quantity import IngredientWeightsPredictorCFG
 
+from app.drive_api import download_gdrive_folder
+
+@st.cache_resource
 def load_model(model, cfg, embedding_weights, model_weights_artifact):
     save_file = Path(f"artifacts/{model.__name__}/model.pt")
     if not save_file.exists(): 
@@ -24,7 +27,18 @@ def load_model(model, cfg, embedding_weights, model_weights_artifact):
     cfg = cfg()
     model = model(cfg, embedding_weights)
     model.load_state_dict(torch.load(save_file))
+    model.to(device).eval()
     return model
+
+@st.cache_data
+def load_files():
+    embedding_weights = {
+        'ingredients': np.load(food_embeddings_file),
+        'special_tokens': np.load(special_token_embeddings_file)
+    }
+    foods = np.load(foods_file)
+    foods = np.char.replace(foods, 'cook', 'cooked')
+    return foods, embedding_weights
 
 def generate(ingredient_model, quantity_model, token_context, quantity_context):
 
@@ -63,23 +77,21 @@ def refresh_ingredients():
 
 # args
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-food_embeddings_file='../data/local/final/full/food_embeddings/0.npy'
-special_token_embeddings_file='../data/local/final/full/special_token_embeddings/0.npy'
-foods_file='../data/local/final/full/food_names/0.npy'
+food_embeddings_file='artifacts/food_embeddings.npy'
+special_token_embeddings_file='artifacts/special_token_embeddings.npy'
+foods_file='artifacts/food_names.npy'
 ingredient_model_weights = "stephankostov/recipe-generator-ingredient/model:v23"
 quantity_model_weights = "stephankostov/recipe-generator-quantity-test/model:v89"
 
+# downloading data
+download_gdrive_folder('recipe-generator', Path('artifacts'))
+
 # loading arrays
-embedding_weights = {
-    'ingredients': np.load(food_embeddings_file),
-    'special_tokens': np.load(special_token_embeddings_file)
-}
-foods = np.load(foods_file)
-foods = np.char.replace(foods, 'cook', 'cooked')
+foods, embedding_weights = load_files()
 
 # loading models
-ingredient_model = load_model(GPTLanguageModel, GPTConfig, embedding_weights, ingredient_model_weights).to(device).eval()
-quantity_model = load_model(IngredientWeightPredictor, IngredientWeightsPredictorCFG, embedding_weights, quantity_model_weights).to(device).eval()
+ingredient_model = load_model(GPTLanguageModel, GPTConfig, embedding_weights, ingredient_model_weights)
+quantity_model = load_model(IngredientWeightPredictor, IngredientWeightsPredictorCFG, embedding_weights, quantity_model_weights)
 
 # streamlit config
 st.set_page_config(page_title="Recipe Generator", page_icon="🍳")

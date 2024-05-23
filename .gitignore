@@ -10,3 +10,4 @@ wandb/
 misc/
 outputs/
 artifacts/
+secrets/
