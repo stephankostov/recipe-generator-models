@@ -22,6 +22,9 @@ service_account_info = {
     **service_account_info,
 }
 
+print("Service account info")
+print(service_account_info['private_key'][:5], service_account_info['universe_domain'])
+
 credentials = service_account.Credentials.from_service_account_info(
                               service_account_info, 
                               scopes=scope)
