@@ -1,4 +1,3 @@
-import pandas as pd
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
@@ -6,11 +5,24 @@ from googleapiclient.http import MediaFileUpload
 import io
 from googleapiclient.errors import HttpError
 from pathlib import Path
+import json
+import os
 
 scope = ['https://www.googleapis.com/auth/drive']
-service_account_json_key = './secrets/gdrive-credentials.json'
-credentials = service_account.Credentials.from_service_account_file(
-                              filename=service_account_json_key, 
+
+with open('./secrets/gdrive-credentials.json', 'r') as f: 
+    service_account_info = json.load(f)
+
+service_account_info = {
+    "client_email": os.environ['GDRIVE_CLIENT_EMAIL'],
+    "client_id": os.environ['GDRIVE_CLIENT_ID'],
+    "private_key_id": os.environ['GDRIVE_API_KEY_ID'],
+    "private_key": os.environ['GDRIVE_API_KEY'],
+    **service_account_info,
+}
+
+credentials = service_account.Credentials.from_service_account_info(
+                              service_account_info, 
                               scopes=scope)
 service = build('drive', 'v3', credentials=credentials)
 

@@ -1,7 +1,11 @@
 from pathlib import Path
 import sys
+import os
+from dotenv import load_dotenv
+
 path_root = Path(__file__).parents[1]
 sys.path.append(str(path_root))
+load_dotenv()
 
 import streamlit as st
 import pandas as pd
@@ -9,7 +13,6 @@ import numpy as np
 import torch
 
 import wandb
-wandb_api = wandb.Api()
 
 from recipe_generator.models.gpt import GPTLanguageModel
 from recipe_generator.config.gpt import GPTConfig
@@ -18,6 +21,12 @@ from recipe_generator.models.transformer import IngredientWeightPredictor
 from recipe_generator.config.quantity import IngredientWeightsPredictorCFG
 
 from app.drive_api import download_gdrive_folder
+
+@st.cache_resource
+def wandb_login():
+    wandb.login(key=os.environ['WANDB_API_KEY'])
+    wandb_api = wandb.Api()
+    return wandb_api
 
 @st.cache_resource
 def load_model(model, cfg, embedding_weights, model_weights_artifact):
@@ -75,6 +84,10 @@ def add_ingredient(ingredient, quantity):
 def refresh_ingredients():
     st.session_state.ingredients = pd.DataFrame(columns=['ingredient', 'quantity'])
 
+@st.cache_resource
+def download_gdrive():
+    download_gdrive_folder('recipe-generator', Path('artifacts'))
+
 # args
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 food_embeddings_file='artifacts/food_embeddings.npy'
@@ -84,7 +97,8 @@ ingredient_model_weights = "stephankostov/recipe-generator-ingredient/model:v23"
 quantity_model_weights = "stephankostov/recipe-generator-quantity-test/model:v89"
 
 # downloading data
-download_gdrive_folder('recipe-generator', Path('artifacts'))
+download_gdrive()
+wandb_api = wandb_login()
 
 # loading arrays
 foods, embedding_weights = load_files()
@@ -94,7 +108,7 @@ ingredient_model = load_model(GPTLanguageModel, GPTConfig, embedding_weights, in
 quantity_model = load_model(IngredientWeightPredictor, IngredientWeightsPredictorCFG, embedding_weights, quantity_model_weights)
 
 # streamlit config
-st.set_page_config(page_title="Recipe Generator", page_icon="🍳")
+# st.set_page_config(page_title="Recipe Generator", page_icon="🍳")
 
 if "recipe" not in st.session_state:
     st.session_state.recipe = pd.DataFrame()

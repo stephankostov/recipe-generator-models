@@ -6,6 +6,7 @@
 .vscode
 .DS_Store
 
+.env
 wandb/
 misc/
 outputs/
