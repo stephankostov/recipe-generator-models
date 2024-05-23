@@ -37,7 +37,7 @@ quantity_model_weights = "stephankostov/recipe-generator-quantity-test/model:v89
 
 @st.cache_resource
 def wandb_login():
-    wandb.login(key=st.secrets['WANDB_API_KEY'])
+    wandb.login(key=os.environ['WANDB_API_KEY'])
     wandb_api = wandb.Api()
     return wandb_api
 

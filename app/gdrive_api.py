@@ -7,6 +7,7 @@ from googleapiclient.errors import HttpError
 from pathlib import Path
 import json
 import os
+import streamlit as st
 
 scope = ['https://www.googleapis.com/auth/drive']
 
@@ -14,10 +15,10 @@ with open('./env/gdrive-creds.json', 'r') as f:
     service_account_info = json.load(f)
 
 service_account_info = {
-    "client_email": os.environ['GDRIVE_CLIENT_EMAIL'],
-    "client_id": os.environ['GDRIVE_CLIENT_ID'],
-    "private_key_id": os.environ['GDRIVE_API_KEY_ID'],
-    "private_key": os.environ['GDRIVE_API_KEY'],
+    "client_email": st.secrets['GDRIVE_CLIENT_EMAIL'],
+    "client_id": st.secrets['GDRIVE_CLIENT_ID'],
+    "private_key_id": st.secrets['GDRIVE_API_KEY_ID'],
+    "private_key": st.secrets['GDRIVE_API_KEY'],
     **service_account_info,
 }
 
