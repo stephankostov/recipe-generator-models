@@ -4,5 +4,7 @@ pandas
 numpy
 torch
 wandb
+google-auth
+google-auth-httplib2
 google-api-python-client
 python-dotenv
