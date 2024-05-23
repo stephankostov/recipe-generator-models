@@ -128,7 +128,7 @@ st.markdown(
 
 st.markdown("---")
 st.markdown(
-    "Which ingredients would you like to include? (optional)"
+    "List the ingredients to include: (optional) "
 )
 
 cols = st.columns(2)
@@ -136,8 +136,9 @@ with cols[0]: ingredient = st.selectbox("Ingredient", foods[5:])
 with cols[1]: quantity = st.number_input("Weight (grams)", 0, 1000)
 st.button("Add", on_click=add_ingredient, args=(ingredient, quantity))
 st.markdown("")
-st.table(st.session_state.ingredients)
-st.button("Refresh", on_click=refresh_ingredients)
+if not st.session_state.ingredients.empty: 
+    st.table(st.session_state.ingredients)
+    st.button("Refresh", on_click=refresh_ingredients)
 
 st.markdown("---")
 st.button(
