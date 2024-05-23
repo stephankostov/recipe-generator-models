@@ -11,7 +11,7 @@ class FoodEmbeddings(nn.Module):
         super().__init__()
         self.special_token_embeddings = nn.Embedding.from_pretrained(torch.tensor(embedding_weights['special_tokens'], dtype=torch.float), padding_idx=0, freeze=False)
         self.molecule_embeddings = nn.Embedding.from_pretrained(torch.tensor(embedding_weights['ingredients'], dtype=torch.float), freeze=True)
-        self.position_embeddings = PositionalEncoding(d_model=embedding_weights['ingredients'].shape[1], dropout=0, max_len=model_cfg.max_len) if model_cfg.pos_embeds else None
+        self.position_embeddings = PositionalEncoding(d_model=embedding_weights['ingredients'].shape[1], dropout=model_cfg.dropout, max_len=model_cfg.max_len) if model_cfg.pos_embeds else None
 
     def get_weights(self):
 
@@ -25,7 +25,7 @@ class FoodEmbeddings(nn.Module):
 
     def forward(self, x):
 
-        special_tokens_mask = x < 4
+        special_tokens_mask = x < self.special_token_embeddings.weight.size(0)
         special_token_selection = x.clone()
         special_token_selection[~special_tokens_mask] = 0
 
@@ -52,5 +52,6 @@ class PositionalEncoding(nn.Module):
         Arguments:
             x: Tensor, shape ``[batch_size, seq_len, embedding_dim]``
         """
-        x = x + self.pe[:x.size(0)]
+
+        x = x + self.pe[:,:x.size(1),:]
         return self.dropout(x)

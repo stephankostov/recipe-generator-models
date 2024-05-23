@@ -7,7 +7,7 @@ from recipe_generator.utils import nostdout
 
 class Trainer():
 
-    def __init__(self, train_cfg, train_dl, validation_dl, model, optimiser, loss_func, metric_funcs, sample_inference, save_dir, wandb):
+    def __init__(self, train_cfg, train_dl, validation_dl, model, optimiser, loss_func, metric_funcs, sample_inference, save_dir, wandb, model_tgt=False):
         self.train_cfg = train_cfg
         self.train_dl = train_dl
         self.validation_dl = validation_dl
@@ -39,7 +39,7 @@ class Trainer():
 
                 if i % self.train_cfg.save_steps == 0:
                     batch = next(iter(self.validation_dl))
-                    batch = [x.to(self.train_cfg.device) for x in batch]
+                    batch = [x.to(self.train_cfg.device) if not isinstance(x, list) else [xi.to(self.train_cfg.device) for xi in x] for x in batch]
                     validation_loss = self.eval(batch)
                     self.metrics = self.calculate_metrics(train_loss, validation_loss, batch)
                     if self.train_cfg.wandb: self.wandb.log(self.metrics, step=self.global_step)
@@ -50,7 +50,7 @@ class Trainer():
 
         self.model.train()
 
-        batch = [x.to(self.train_cfg.device) for x in batch]
+        batch = [x.to(self.train_cfg.device) if not isinstance(x, list) else [xi.to(self.train_cfg.device) for xi in x] for x in batch]
         xb, yb, mask = batch
 
         self.optimiser.zero_grad(set_to_none=True)
@@ -68,7 +68,7 @@ class Trainer():
 
         with torch.no_grad():
 
-            batch = [x.to(self.train_cfg.device) for x in batch]
+            batch = [x.to(self.train_cfg.device) if not isinstance(x, list) else [xi.to(self.train_cfg.device) for xi in x] for x in batch]
             xb, yb, mask = batch
 
             self.model_output = self.model(xb)

@@ -43,8 +43,8 @@ def main(recipes_file='../data/local/final/full/recipe_food_ids/0.npy',
 
     recipes = np.load(recipes_file)
     embedding_weights = {
-        'ingredients': torch.tensor(np.load(food_embeddings_file), dtype=torch.float), 
-        'special_tokens': torch.tensor(np.load(special_token_embeddings_file), dtype=torch.float)
+        'ingredients': np.load(food_embeddings_file), 
+        'special_tokens': np.load(special_token_embeddings_file)
     }
     foods = np.load(foods_file)
     
@@ -125,11 +125,20 @@ def sample_inference(trainer, model_input, foods):
     base_foods = ['chicken', 'cream', 'eggplant', 'egg', 'strawberry']
     base_food_ids = [get_food_id(food) for food in base_foods]
 
+    # selected inference
     sample_results = np.empty((len(base_foods)*5, 15), dtype=foods.dtype)
     for i, food_id in enumerate(base_food_ids):
-        context = (torch.ones((5,1), dtype=torch.long)*food_id).to(trainer.train_cfg.device)
+        context = torch.concat([(torch.ones((5,1), dtype=torch.long)*3),(torch.ones((5,1), dtype=torch.long)*food_id)], dim=1).to(trainer.train_cfg.device)
         generations = trainer.model.generate(context, 14).to('cpu')
         sample_results[i*5:(i*5)+5] = foods[generations]
+
+    # random inference
+    context = (torch.ones(5,1, dtype=torch.long)*3).to(trainer.train_cfg.device)
+    generations = trainer.model.generate(context, 15).to('cpu').detach()
+
+    sample_results = np.concatenate([
+        foods[generations], sample_results
+    ])
 
     sample_results = pd.DataFrame(sample_results, dtype='string')
 

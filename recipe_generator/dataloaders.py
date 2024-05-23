@@ -94,14 +94,14 @@ class NextTokenDataset(Dataset):
         recipe = self.recipes[idx]
 
         recipe = [food for food in recipe if food != 0]
-        recipe_len = len(recipe)
-        pad_count = self.max_len - recipe_len - 1
-        end_token = [3] if pad_count>=0 else []
-        recipe = recipe + end_token + [0]*pad_count
-        assert len(recipe) == self.max_len
+        pad_count = self.max_len - (len(recipe)+1) # adding end token
+        end_token = [4] if pad_count>=0 else [] # add end token if padding
+        start_token = [3]
+        recipe = start_token + recipe + end_token + [0]*pad_count
+        assert len(recipe) == self.max_len+1, print(recipe, len(recipe), self.max_len+1)
 
-        x = torch.tensor(recipe[0:len(recipe)-1])
-        y = torch.tensor(recipe[1:len(recipe)])
+        x = torch.tensor(recipe[:-1])
+        y = torch.tensor(recipe[1:])
         mask_ids = torch.tensor([1 if food_id != 0 else 0 for food_id in y])
 
         return x, y, mask_ids
@@ -116,6 +116,30 @@ class WeightsDataset(Dataset):
     def __len__(self):
         return len(self.recipe_foods)
     
+    # def __getitem__(self, idx):
+
+    #     if torch.is_tensor(idx): idx = idx.to_list()
+
+    #     foods = self.recipe_foods[idx]
+    #     weights = self.recipe_weights[idx]
+
+    #     pad_idxs = np.where(foods == 0)[0]
+    #     if pad_idxs.size: foods[pad_idxs[0]] = 3 # adding end token
+
+    #     foods = [3] + foods; weights = [0.] + weights # adding start token
+
+    #     assert len(foods) == len(weights) == self.max_len
+    #     assert np.isclose(weights[pad_idxs], 0).all(), print(foods, weights)
+
+    #     src = torch.tensor(foods, dtype=torch.int)
+    #     tgt = torch.tensor(weights, dtype=torch.float)[:-1]
+    #     labels = torch.tensor(weights, dtype=torch.float)[1:]
+
+    #     mask_ids = torch.ones(labels.shape, dtype=torch.float)
+    #     mask_ids[pad_idxs-1] = 0
+
+    #     return (src, tgt), labels, mask_ids
+
     def __getitem__(self, idx):
 
         if torch.is_tensor(idx): idx = idx.to_list()
@@ -123,16 +147,59 @@ class WeightsDataset(Dataset):
         foods = self.recipe_foods[idx]
         weights = self.recipe_weights[idx]
 
-        pad_idxs = np.where(foods == 0)[0]
-        if pad_idxs.size: foods[pad_idxs[0]] = 3
+        # adding start token
+        foods = np.append([3], foods)[:-1]
+        weights = np.append([0.], weights)[:-1]
 
-        assert len(foods) == len(weights) == self.max_len 
+        pad_idxs = np.where(foods == 0)[0]
+        # adding end token
+        if pad_idxs.size: 
+            foods[pad_idxs[0]] = 4
+        else:
+            foods[-1] = 4
+            weights[-1] = 0.
+
+        assert len(foods) == len(weights) == self.max_len
         assert np.isclose(weights[pad_idxs], 0).all(), print(foods, weights)
 
         x = torch.tensor(foods, dtype=torch.int)
         y = torch.tensor(weights, dtype=torch.float)
 
-        mask_ids = torch.ones(foods.shape, dtype=torch.float)
-        mask_ids[pad_idxs] = 0
+        mask_ids = torch.ones(y.shape, dtype=torch.float)
+        mask_ids[pad_idxs[1:]] = 0
 
         return x, y, mask_ids
+    
+    def __getitem__(self, idx):
+
+        if torch.is_tensor(idx): idx = idx.to_list()
+
+        foods = self.recipe_foods[idx]
+        weights = self.recipe_weights[idx]
+
+        # adding start token
+        foods = np.append([3], foods)[:-1]
+        weights = np.append([0.], weights)[:-1]
+
+        pad_idxs = np.where(foods == 0)[0]
+        # adding end token
+        if pad_idxs.size: 
+            foods[pad_idxs[0]] = 4
+        else:
+            foods[-1] = 4
+            weights[-1] = 0.
+
+        assert len(foods) == len(weights) == self.max_len
+        assert np.isclose(weights[pad_idxs], 0).all(), print(foods, weights)
+
+        foods = torch.tensor(foods, dtype=torch.int)
+        weights = torch.tensor(weights, dtype=torch.float)
+        
+        src = foods
+        tgt = weights[:-1]
+        label = weights[1:]
+
+        mask_ids = torch.ones(label.shape, dtype=torch.float)
+        mask_ids[pad_idxs[1:]-1] = 0
+
+        return (src, tgt), label, mask_ids
