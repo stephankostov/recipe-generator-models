@@ -10,7 +10,7 @@ import os
 
 scope = ['https://www.googleapis.com/auth/drive']
 
-with open('./secrets/gdrive-credentials.json', 'r') as f: 
+with open('./env/gdrive-creds.json', 'r') as f: 
     service_account_info = json.load(f)
 
 service_account_info = {
