@@ -32,6 +32,9 @@ service = build('drive', 'v3', credentials=credentials)
 
 def download_gdrive_folder(folder_name, download_dir):
 
+    download_dir = Path(download_dir)
+    download_dir.mkdir(parents=True, exist_ok=True)
+
     results = service.files().list(pageSize=1000, fields="nextPageToken, files(id, name, mimeType)", q=f'name contains "{folder_name}" and mimeType = "application/vnd.google-apps.folder"').execute()
     folder_id = results.get('files', [])[0]['id']
 
