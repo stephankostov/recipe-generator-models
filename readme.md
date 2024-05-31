@@ -49,17 +49,15 @@ Do we expect our input data to be different from our output data? Lets take for 
 
 It's important to note that this is referring to the generation mechanism at inference time. Do we want the model to generate tokens one at a time, or do we want the model to output the completed sequence all at once? 
 
-Do we want the model to iteratively get to the final output, or do we want it to generate it all at once. Treating the model as an all-knowing black-box we would think that it should be able to generate the right answer at once. When viewing the model's generation as thinking, it's intuitive to believe that it would be useful to be able to change the first generation depending on the prediction of the next generation - what if you come across a contradiction and need to correct? 
+Do we want the model to iteratively get to the final output, or do we want it to generate it all at once. Treating the model as an all-knowing black-box we would think that it should be able to generate the right answer at once. When viewing the model's generation as thinking, intuitively, a model should be more accurate if allowed to predict each token with consideration to all others in the sequence - those prior as well as the ones after. In other words, it should be able to change its predictions of tokens beforehand depending on those it chooses later.
 
 But this assumption of the model thinking could very well be flawed. Rather than thinking it's moreso doing a one-step calculation to come up with everything at once. Maybe allowing it to iterate is more close to thinking as we know it, as thought isn't a one-step process of neurons, it's many over time which evolves and forms the final product. 
 
 Intuition here can only go so far and gets complicated fast. Empirically it is known that for token generation, autoregressive geneartion gives more accurate results, at the expense of haivng more of an inference cost as inference is done for each token. 
 
-Since this application is very constrained - to recipes with 1k ingredient tokens rather than text about anything known to the internet - the model can be small, and therefor inference will not be too costly and therefor isn't a concern. We are much more interested in accuracy, and therefor when knowing this fact autoregressive models are an easy choice.
+Since this application is very constrained - to recipes with 1k ingredient tokens rather than text about anything known to the internet - the model can be small, and therefor inference will not be costly so should not be a concern. We are much more interested in accuracy, and therefor when knowing this fact autoregressive models are an easy choice.
 
-When it comes to quantity prediction though, it mamkes sense to be able to predict every quantity at once, as the quantities are done in proportion to the whole recipe. 
-
-Could this be a flaw in the methodology here - is it flawed that the outputs of each token are dependent on eachother and the recipe as a whole? 
+When it comes to quantity prediction though, it makes sense to be able to predict every quantity at once, as the quantities are done in proportion to the whole recipe.  Could this be a flaw in the methodology here - is it flawed that the outputs of each token are dependent on eachother and the recipe as a whole? 
 
 ## Quantity Model
 
