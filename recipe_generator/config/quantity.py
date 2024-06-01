@@ -7,6 +7,6 @@ class IngredientWeightsPredictorCFG(NamedTuple):
     dim_feedforward: int = 800
     num_encoder_layers: int = 2
     num_decoder_layers: int = 2
-    max_len: int = 15
+    max_len: int = 14
     pos_embeds = True
     dropout = 0.1

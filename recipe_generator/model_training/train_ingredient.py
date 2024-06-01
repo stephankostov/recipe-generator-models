@@ -28,7 +28,7 @@ from recipe_generator.utils import set_seeds, nostdout
 from recipe_generator.config.gpt import GPTConfig
 from recipe_generator.config.train import TrainConfig
 
-def main(recipes_file='../data/local/final/full/recipe_food_ids/0.npy',
+def main(recipes_file='../data/local/final/full/recipes/recipe_food_ids.npy',
         food_embeddings_file='../data/local/final/full/food_embeddings/0.npy',
         special_token_embeddings_file='../data/local/final/full/special_token_embeddings/0.npy',
         foods_file='../data/local/final/full/food_names/0.npy'):
@@ -59,7 +59,7 @@ def main(recipes_file='../data/local/final/full/recipe_food_ids/0.npy',
 
     if train_cfg.wandb: 
         wandb.init(
-            project='recipe-generator-ingredient',
+            project='recipe-generator-ingredient-v2',
             config={ **model_cfg._asdict(), **train_cfg._asdict(), 'loss_note': 'ce_loss' }
         )
         wandb.watch(model, log_freq=train_cfg.save_steps)
@@ -94,7 +94,7 @@ def calculate_accuracy(trainer, batch):
         padded_tokens = preds.clone()
 
         for i, label in enumerate(preds):
-            end_index = (label == 3).nonzero()
+            end_index = (label == 4).nonzero()
             mask = torch.ones(label.shape, device=device)
             if end_index.numel(): mask[end_index[0]+1:] = 0
             padded_tokens[i] = label * mask
@@ -129,12 +129,12 @@ def sample_inference(trainer, model_input, foods):
     sample_results = np.empty((len(base_foods)*5, 15), dtype=foods.dtype)
     for i, food_id in enumerate(base_food_ids):
         context = torch.concat([(torch.ones((5,1), dtype=torch.long)*3),(torch.ones((5,1), dtype=torch.long)*food_id)], dim=1).to(trainer.train_cfg.device)
-        generations = trainer.model.generate(context, 14).to('cpu')
+        generations = trainer.model.generate(context, 13).to('cpu')
         sample_results[i*5:(i*5)+5] = foods[generations]
 
     # random inference
     context = (torch.ones(5,1, dtype=torch.long)*3).to(trainer.train_cfg.device)
-    generations = trainer.model.generate(context, 15).to('cpu').detach()
+    generations = trainer.model.generate(context, 14).to('cpu').detach()
 
     sample_results = np.concatenate([
         foods[generations], sample_results

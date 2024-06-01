@@ -35,8 +35,8 @@ from recipe_generator.config.train import TrainConfig
 def main(food_embeddings_file='../data/local/final/full/food_embeddings/0.npy',
         special_token_embeddings_file='../data/local/final/full/special_token_embeddings/0.npy',
         foods_file='../data/local/final/full/food_names/0.npy',
-        recipe_foods_file='../data/local/final/full/recipes/foods.npy',
-        recipe_weights_file='../data/local/final/full/recipes/weights.npy'):
+        recipe_foods_file='../data/local/final/full/recipes/recipe_food_ids.npy',
+        recipe_weights_file='../data/local/final/full/recipes/recipe_food_weights.npy'):
     
     model_cfg = IngredientWeightsPredictorCFG()
     train_cfg = TrainConfig()
@@ -63,7 +63,7 @@ def main(food_embeddings_file='../data/local/final/full/food_embeddings/0.npy',
 
     if train_cfg.wandb: 
         wandb.init(
-            project='recipe-generator-quantity-test',
+            project='recipe-generator-quantity-v1',
             config={ **model_cfg._asdict(), **train_cfg._asdict(), 'loss_note': 'ce_loss' }
         )
         wandb.watch(model, log_freq=train_cfg.save_steps)
@@ -85,8 +85,6 @@ def main(food_embeddings_file='../data/local/final/full/food_embeddings/0.npy',
                       save_dir=Path('./outputs/quantity'))
     
     trainer.train()
-
-    
 
 def baseline_loss(trainer, batch):
     xb, yb, mask = batch

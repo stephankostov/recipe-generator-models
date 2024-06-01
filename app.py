@@ -31,8 +31,8 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 food_embeddings_file='artifacts/food_embeddings.npy'
 special_token_embeddings_file='artifacts/special_token_embeddings.npy'
 foods_file='artifacts/food_names.npy'
-ingredient_model_weights = "stephankostov/recipe-generator-ingredient/model:v23"
-quantity_model_weights = "stephankostov/recipe-generator-quantity-test/model:v89"
+ingredient_model_weights = "stephankostov/recipe-generator-ingredient-v2/model:v9"
+quantity_model_weights = "stephankostov/recipe-generator-quantity-test/model:v109"
 
 
 @st.cache_resource
@@ -64,7 +64,7 @@ def load_files():
 
 def generate(ingredient_model, quantity_model, token_context, quantity_context):
 
-    ingredient_samples = ingredient_model.generate(token_context, max_new_tokens=15-token_context.size(1))
+    ingredient_samples = ingredient_model.generate(token_context, max_new_tokens=14-token_context.size(1))
     quantity_samples = quantity_model.generate(ingredient_samples, quantity_context)
 
     ingredient_samples = ingredient_samples.detach().cpu()
@@ -128,12 +128,12 @@ if "add_ingredient" not in st.session_state:
 
 st.title("Recipe Generator")
 st.markdown(
-    "A quick demo of the models in action."
+    "A rough demo of the models in action."
 )
 
 st.markdown("---")
 st.markdown(
-    "List the ingredients to include: (optional) "
+    "Enter in the ingredients to include: (optional) "
 )
 
 cols = st.columns(2)

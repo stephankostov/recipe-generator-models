@@ -116,60 +116,6 @@ class WeightsDataset(Dataset):
     def __len__(self):
         return len(self.recipe_foods)
     
-    # def __getitem__(self, idx):
-
-    #     if torch.is_tensor(idx): idx = idx.to_list()
-
-    #     foods = self.recipe_foods[idx]
-    #     weights = self.recipe_weights[idx]
-
-    #     pad_idxs = np.where(foods == 0)[0]
-    #     if pad_idxs.size: foods[pad_idxs[0]] = 3 # adding end token
-
-    #     foods = [3] + foods; weights = [0.] + weights # adding start token
-
-    #     assert len(foods) == len(weights) == self.max_len
-    #     assert np.isclose(weights[pad_idxs], 0).all(), print(foods, weights)
-
-    #     src = torch.tensor(foods, dtype=torch.int)
-    #     tgt = torch.tensor(weights, dtype=torch.float)[:-1]
-    #     labels = torch.tensor(weights, dtype=torch.float)[1:]
-
-    #     mask_ids = torch.ones(labels.shape, dtype=torch.float)
-    #     mask_ids[pad_idxs-1] = 0
-
-    #     return (src, tgt), labels, mask_ids
-
-    def __getitem__(self, idx):
-
-        if torch.is_tensor(idx): idx = idx.to_list()
-
-        foods = self.recipe_foods[idx]
-        weights = self.recipe_weights[idx]
-
-        # adding start token
-        foods = np.append([3], foods)[:-1]
-        weights = np.append([0.], weights)[:-1]
-
-        pad_idxs = np.where(foods == 0)[0]
-        # adding end token
-        if pad_idxs.size: 
-            foods[pad_idxs[0]] = 4
-        else:
-            foods[-1] = 4
-            weights[-1] = 0.
-
-        assert len(foods) == len(weights) == self.max_len
-        assert np.isclose(weights[pad_idxs], 0).all(), print(foods, weights)
-
-        x = torch.tensor(foods, dtype=torch.int)
-        y = torch.tensor(weights, dtype=torch.float)
-
-        mask_ids = torch.ones(y.shape, dtype=torch.float)
-        mask_ids[pad_idxs[1:]] = 0
-
-        return x, y, mask_ids
-    
     def __getitem__(self, idx):
 
         if torch.is_tensor(idx): idx = idx.to_list()
