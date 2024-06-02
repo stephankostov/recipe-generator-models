@@ -18,6 +18,7 @@ import wandb
 
 from recipe_generator.models.ingredient import IngredientModel
 from recipe_generator.models.quantity import QuantityModel
+from recipe_generator.utils import load_config
 
 from app.gdrive_api import download_gdrive_folder
 
@@ -28,8 +29,10 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 food_embeddings_file='artifacts/food_embeddings.npy'
 special_token_embeddings_file='artifacts/special_token_embeddings.npy'
 foods_file='artifacts/food_names.npy'
-ingredient_model_weights = "stephankostov/recipe-generator-ingredient-v2/model:v9"
-quantity_model_weights = "stephankostov/recipe-generator-quantity-test/model:v109"
+ingredient_model_weights = "stephankostov/recipe-generator-ingredient-v2/model:v28"
+ingredient_model_config = "stephankostov/recipe-generator-ingredient-v2/model_cfg:v0"
+quantity_model_weights = "stephankostov/recipe-generator-quantity-v1/model:v9"
+quantity_model_config = "stephankostov/recipe-generator-quantity-v1/model_cfg:v0"
 
 @st.cache_resource
 def wandb_login():
@@ -38,14 +41,15 @@ def wandb_login():
     return wandb_api
 
 @st.cache_resource
-def load_model(model, cfg, embedding_weights, model_weights_artifact):
-    save_file = Path(f"artifacts/{model.__name__}/model.pt")
-    if not save_file.exists(): 
-        wandb_api.artifact(model_weights_artifact).download(save_file.parent)
-    cfg = cfg()
+def load_model(model, embedding_weights, model_weights_artifact, model_config_artifact):
+    save_dir = Path(f"artifacts/{model.__name__}")
+    if not save_dir.exists():
+        wandb_api.artifact(model_weights_artifact).download(save_dir)
+        wandb_api.artifact(model_config_artifact).download(save_dir)
+    cfg = load_config(next(save_dir.glob('*.yaml')))
     model = model(cfg, embedding_weights)
-    model.load_state_dict(torch.load(save_file))
-    model.to(device).eval()
+    model.load_state_dict(torch.load(save_dir/'model.pt'))
+    model = model.to(device).eval()
     return model
 
 @st.cache_data
@@ -103,9 +107,8 @@ wandb_api = wandb_login()
 
 print("Loading files")
 foods, embedding_weights = load_files()
-ingredient_model = load_model(GPTLanguageModel, QuantityModelConfig, embedding_weights, ingredient_model_weights)
-quantity_model = load_model(IngredientWeightPredictor, QuantityModelConfig, embedding_weights, quantity_model_weights)
-
+ingredient_model = load_model(IngredientModel, embedding_weights, ingredient_model_weights, ingredient_model_config)
+quantity_model = load_model(QuantityModel, embedding_weights, quantity_model_weights, quantity_model_config)
 
 print("Initialising streamlit page")
 # st.set_page_config(page_title="Recipe Generator", page_icon="🍳")
