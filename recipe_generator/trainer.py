@@ -22,6 +22,8 @@ class Trainer():
         self.global_step = 0
         self.model_output = None
         self.metrics = {}
+        self.early_stopper = EarlyStopping()
+        self.validation_loss = float('inf')
         # self.model_artifact = self.wandb.Artifact('model', type='model') if self.wandb else None
 
     def train(self):
@@ -40,11 +42,13 @@ class Trainer():
                 if i % self.train_cfg.save_steps == 0:
                     batch = next(iter(self.validation_dl))
                     batch = [x.to(self.train_cfg.device) if not isinstance(x, list) else [xi.to(self.train_cfg.device) for xi in x] for x in batch]
-                    validation_loss = self.eval(batch)
-                    self.metrics = self.calculate_metrics(train_loss, validation_loss, batch)
+                    self.validation_loss = self.eval(batch)
+                    self.metrics = self.calculate_metrics(train_loss, self.validation_loss, batch)
                     if self.train_cfg.wandb: self.wandb.log(self.metrics, step=self.global_step)
 
             self.save(batch)
+            self.early_stopper(self.validation_loss)
+            if self.early_stopper.early_stop: break
 
     def step(self, batch):
 
@@ -110,6 +114,38 @@ class Trainer():
             artifact.add_file(self.save_dir/'model.pt')
             self.wandb.log_artifact(artifact)
         self.model.to(self.train_cfg.device)
+
+class EarlyStopping:
+    def __init__(self, patience=2, verbose=False, sigma=0.01, path='checkpoint.pt', trace_func=print):
+        """
+        Args:
+            patience (int): How many epochs to wait after last time validation loss improved.
+            verbose (bool): If True, prints a message for each validation loss improvement. 
+            sigma (float): Minimum ratio change in the validation loss to qualify as an improvement.
+            path (str): Path for the checkpoint to be saved to.
+            trace_func (function): trace print function.
+        """
+        self.patience = patience
+        self.verbose = verbose
+        self.counter = 0
+        self.best_score = None
+        self.early_stop = False
+        self.sigma = sigma
+        self.path = path
+        self.trace_func = trace_func
+
+    def __call__(self, val_loss):
+        score = -val_loss
+        if self.best_score is None:
+            self.best_score = score
+        elif score < (self.best_score*(1+self.sigma)):
+            self.counter += 1
+            self.trace_func(f'EarlyStopping counter: {self.counter} out of {self.patience}')
+            if self.counter >= self.patience:
+                self.early_stop = True
+        else:
+            self.best_score = score
+            self.counter = 0
 
         
 

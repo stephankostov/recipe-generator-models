@@ -36,11 +36,11 @@ from recipe_generator.models.embed import FoodEmbeddings, PositionalEncoding
 #         samples = F.sigmoid(samples)
 #         return samples
     
-class IngredientWeightPredictor(nn.Module):
+class QuantityModel(nn.Module):
 
     def __init__(self, model_cfg, embedding_weights):
 
-        super(IngredientWeightPredictor, self).__init__()
+        super(QuantityModel, self).__init__()
 
         self.model_cfg = model_cfg
 

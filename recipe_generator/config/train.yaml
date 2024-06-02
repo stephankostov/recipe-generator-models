@@ -1,0 +1,8 @@
+seed: 1337
+batch_size: 1000
+lr: 1.0e-3
+n_epochs: 10
+save_steps: 50
+max_steps: 1.0e+9
+device: "cuda"
+wandb: true

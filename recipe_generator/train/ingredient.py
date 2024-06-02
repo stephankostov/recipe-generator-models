@@ -5,6 +5,7 @@ sys.path.append(str(path_root))
 
 import os
 import json
+import yaml
 from typing import NamedTuple
 import pickle
 from tqdm import tqdm
@@ -18,23 +19,20 @@ import torch.nn as nn
 
 import wandb
 
-import recipe_generator.models.gpt as gpt
-import recipe_generator.dataloaders as dataloaders
+from recipe_generator.models.ingredient import IngredientModel
+import recipe_generator.datasets as datasets
 import recipe_generator.optimiser as optimiser
 from recipe_generator.trainer import Trainer
 from recipe_generator.loss import MaskedCrossEntropyLoss
-from recipe_generator.utils import set_seeds, nostdout
-
-from recipe_generator.config.gpt import GPTConfig
-from recipe_generator.config.train import TrainConfig
+from recipe_generator.utils import load_config, set_seeds, nostdout, debugger_is_active
 
 def main(recipes_file='../data/local/final/full/recipes/recipe_food_ids.npy',
         food_embeddings_file='../data/local/final/full/food_embeddings/0.npy',
         special_token_embeddings_file='../data/local/final/full/special_token_embeddings/0.npy',
         foods_file='../data/local/final/full/food_names/0.npy'):
     
-    model_cfg = GPTConfig()
-    train_cfg = TrainConfig()
+    model_cfg = load_config('./recipe_generator/config/ingredient.yaml')
+    train_cfg = load_config('./recipe_generator/config/train.yaml')
 
     set_seeds(train_cfg.seed)
 
@@ -51,18 +49,22 @@ def main(recipes_file='../data/local/final/full/recipes/recipe_food_ids.npy',
     cv_ratio = 0.8
     np.random.shuffle(recipes)
     data_train, data_validation = recipes[:int(cv_ratio*len(recipes))], recipes[int(cv_ratio*len(recipes)):]
-    train_ds, validation_ds = dataloaders.NextTokenDataset(data_train, model_cfg.block_size), dataloaders.NextTokenDataset(data_validation, model_cfg.block_size), 
+    train_ds, validation_ds = datasets.NextTokenDataset(data_train, model_cfg.block_size), datasets.NextTokenDataset(data_validation, model_cfg.block_size), 
     train_dl, validation_dl = DataLoader(train_ds, batch_size=train_cfg.batch_size, shuffle=True, num_workers=2), DataLoader(validation_ds, batch_size=train_cfg.batch_size, shuffle=False, num_workers=2)
 
-    model = gpt.GPTLanguageModel(model_cfg, embedding_weights)
+    model = IngredientModel(model_cfg, embedding_weights)
     model.to(train_cfg.device)
 
+    if debugger_is_active(): train_cfg.wandb = False
     if train_cfg.wandb: 
         wandb.init(
             project='recipe-generator-ingredient-v2',
-            config={ **model_cfg._asdict(), **train_cfg._asdict(), 'loss_note': 'ce_loss' }
+            config={ **model_cfg.to_dict(), **train_cfg.to_dict(), 'loss_note': 'ce_loss' }
         )
         wandb.watch(model, log_freq=train_cfg.save_steps)
+        artifact = wandb.Artifact('model_cfg', type='model_cfg')
+        artifact.add_file('./recipe_generator/config/ingredient.yaml', name='model_cfg.yaml')
+        wandb.log_artifact(artifact)
 
     print(sum(p.numel() for p in model.parameters())/1e6, 'M parameters')
 

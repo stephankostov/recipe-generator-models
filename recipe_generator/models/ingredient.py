@@ -7,26 +7,15 @@ from torch.nn import functional as F
 
 from recipe_generator.models.embed import FoodEmbeddings
 
-class Config(NamedTuple):
-
-    vocab_size: int = 1000 # Size of Vocabulary
-    n_embd: int = 400 # Dimension of Hidden Layer in Transformer Encoder
-    n_layers: int = 12 # Numher of Hidden Layers
-    n_heads: int = 12 # Numher of Heads in Multi-Headed Attention Layers
-    head_size: int = n_embd // n_heads # Dimension of Intermediate Layers in Positionwise Feedforward Net
-    p_drop_hidden: float = 0.1 # Probability of Dropout of various Hidden Layers
-    p_drop_attn: float = 0.1 # Probability of Dropout of Attention Layers
-    block_size: int = 15 # Maximum Length for Positional Embeddings
-    device: str = 'cpu'
-
 class Head(nn.Module):
     """ one head of self-attention """
 
     def __init__(self, cfg):
         super().__init__()
-        self.key = nn.Linear(cfg.n_embd, cfg.head_size, bias=False)
-        self.query = nn.Linear(cfg.n_embd, cfg.head_size, bias=False)
-        self.value = nn.Linear(cfg.n_embd, cfg.head_size, bias=False)
+        head_size = cfg.n_embd // cfg.n_heads
+        self.key = nn.Linear(cfg.n_embd, head_size, bias=False)
+        self.query = nn.Linear(cfg.n_embd, head_size, bias=False)
+        self.value = nn.Linear(cfg.n_embd, head_size, bias=False)
         self.register_buffer('tril', torch.tril(torch.ones(cfg.block_size, cfg.block_size)))
 
         self.dropout = nn.Dropout(cfg.p_drop_attn)
@@ -53,7 +42,7 @@ class MultiHeadAttention(nn.Module):
     def __init__(self, cfg):
         super().__init__()
         self.heads = nn.ModuleList([Head(cfg) for _ in range(cfg.n_heads)])
-        self.proj = nn.Linear(cfg.head_size * cfg.n_heads, cfg.n_embd)
+        self.proj = nn.Linear((cfg.n_embd // cfg.n_heads) * cfg.n_heads, cfg.n_embd)
         self.dropout = nn.Dropout(cfg.p_drop_attn)
 
     def forward(self, x):
@@ -92,7 +81,7 @@ class Block(nn.Module):
         x = x + self.ffwd(self.ln2(x))
         return x
     
-class GPTLanguageModel(nn.Module):
+class IngredientModel(nn.Module):
 
     def __init__(self, cfg, embedding_weights):
         super().__init__()

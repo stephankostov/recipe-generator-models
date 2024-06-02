@@ -16,11 +16,8 @@ import torch
 
 import wandb
 
-from recipe_generator.models.gpt import GPTLanguageModel
-from recipe_generator.config.gpt import GPTConfig
-
-from recipe_generator.models.transformer import IngredientWeightPredictor
-from recipe_generator.config.quantity import IngredientWeightsPredictorCFG
+from recipe_generator.models.ingredient import IngredientModel
+from recipe_generator.models.quantity import QuantityModel
 
 from app.gdrive_api import download_gdrive_folder
 
@@ -106,8 +103,8 @@ wandb_api = wandb_login()
 
 print("Loading files")
 foods, embedding_weights = load_files()
-ingredient_model = load_model(GPTLanguageModel, GPTConfig, embedding_weights, ingredient_model_weights)
-quantity_model = load_model(IngredientWeightPredictor, IngredientWeightsPredictorCFG, embedding_weights, quantity_model_weights)
+ingredient_model = load_model(GPTLanguageModel, QuantityModelConfig, embedding_weights, ingredient_model_weights)
+quantity_model = load_model(IngredientWeightPredictor, QuantityModelConfig, embedding_weights, quantity_model_weights)
 
 
 print("Initialising streamlit page")

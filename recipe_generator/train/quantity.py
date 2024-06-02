@@ -20,17 +20,14 @@ import torch.nn.functional as F
 
 import wandb
 
-import recipe_generator.models.gpt as gpt
-import recipe_generator.dataloaders as dataloaders
+import recipe_generator.models.ingredient as ingredient
+import recipe_generator.datasets as datasets
 import recipe_generator.optimiser as optimiser
 from recipe_generator.loss import MaskedCrossEntropyLoss
-from recipe_generator.utils import set_seeds, nostdout
-from recipe_generator.models.transformer import QuantityPredictorEncoder, IngredientWeightPredictor
+from recipe_generator.utils import load_config, set_seeds, nostdout
+from recipe_generator.models.quantity import QuantityModel
 from recipe_generator.loss import MaskedMSELoss
 from recipe_generator.trainer import Trainer
-
-from recipe_generator.config.quantity import IngredientWeightsPredictorCFG
-from recipe_generator.config.train import TrainConfig
 
 def main(food_embeddings_file='../data/local/final/full/food_embeddings/0.npy',
         special_token_embeddings_file='../data/local/final/full/special_token_embeddings/0.npy',
@@ -38,8 +35,8 @@ def main(food_embeddings_file='../data/local/final/full/food_embeddings/0.npy',
         recipe_foods_file='../data/local/final/full/recipes/recipe_food_ids.npy',
         recipe_weights_file='../data/local/final/full/recipes/recipe_food_weights.npy'):
     
-    model_cfg = IngredientWeightsPredictorCFG()
-    train_cfg = TrainConfig()
+    model_cfg = load_config('./recipe_generator/config/quantity.yaml')
+    train_cfg = load_config('./recipe_generator/config/train.yaml')
 
     set_seeds(train_cfg.seed)
 
@@ -47,26 +44,29 @@ def main(food_embeddings_file='../data/local/final/full/food_embeddings/0.npy',
     recipe_foods = np.load(recipe_foods_file)
     recipe_weights = np.load(recipe_weights_file)
     embedding_weights = {
-        'ingredients': torch.tensor(np.load(food_embeddings_file), dtype=torch.float), 
-        'special_tokens': torch.tensor(np.load(special_token_embeddings_file), dtype=torch.float)
+        'ingredients': np.load(food_embeddings_file), 
+        'special_tokens': np.load(special_token_embeddings_file)
     }
     
     cv_ratio = 0.8
     shuffle_idx = np.random.permutation(len(recipe_foods))
     recipe_foods, recipe_weights = recipe_foods[shuffle_idx], recipe_weights[shuffle_idx]
     train_idxs, validation_idxs = range(0, round(cv_ratio*len(recipe_foods))), range(round(cv_ratio*len(recipe_foods)), len(recipe_foods))
-    train_ds, validation_ds = dataloaders.WeightsDataset(recipe_foods[train_idxs], recipe_weights[train_idxs], model_cfg.max_len), dataloaders.WeightsDataset(recipe_foods[validation_idxs], recipe_weights[validation_idxs], model_cfg.max_len), 
+    train_ds, validation_ds = datasets.WeightsDataset(recipe_foods[train_idxs], recipe_weights[train_idxs], model_cfg.max_len), datasets.WeightsDataset(recipe_foods[validation_idxs], recipe_weights[validation_idxs], model_cfg.max_len), 
     train_dl, validation_dl = DataLoader(train_ds, batch_size=train_cfg.batch_size, shuffle=False, num_workers=2), DataLoader(validation_ds, batch_size=train_cfg.batch_size, shuffle=False, num_workers=2)
 
-    model = IngredientWeightPredictor(model_cfg, embedding_weights)
+    model = QuantityModel(model_cfg, embedding_weights)
     model.to(train_cfg.device)
 
     if train_cfg.wandb: 
         wandb.init(
             project='recipe-generator-quantity-v1',
-            config={ **model_cfg._asdict(), **train_cfg._asdict(), 'loss_note': 'ce_loss' }
+            config={ **model_cfg.to_dict(), **train_cfg.to_dict(), 'loss_note': 'ce_loss' }
         )
         wandb.watch(model, log_freq=train_cfg.save_steps)
+        artifact = wandb.Artifact('model_cfg', type='model_cfg')
+        artifact.add_file('./recipe_generator/config/quantity.yaml')
+        wandb.log_artifact(artifact)
 
     print(sum(p.numel() for p in model.parameters())/1e6, 'M parameters')
 

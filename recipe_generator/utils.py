@@ -2,15 +2,22 @@
 
 """ Utils Functions """
 
+import yaml
 import os
 import random
 import logging
 import contextlib
 import io
 import sys
+from box import Box
 
 import numpy as np
 import torch
+
+def load_config(filename):
+    with open(filename, 'r') as file:
+        config = yaml.safe_load(file)
+    return Box(config)
 
 def set_seeds(seed):
     "set random seeds"

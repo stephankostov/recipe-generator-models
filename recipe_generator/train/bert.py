@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader
 import torch.nn as nn
 
 import models.bert as bert
-import recipe_generator.dataloaders as dataloaders
+import recipe_generator.datasets as datasets
 import recipe_generator.optimiser as optimiser
 from recipe_generator.loss import SeqBCELoss
 from recipe_generator.utils import set_seeds
@@ -58,11 +58,11 @@ def main(train_cfg='./config/train.json',
     
     food_vectors = torch.tensor(food_vectors, dtype=torch.float)
 
-    preprocess_pipeline = [dataloaders.MLMDataMasker(
+    preprocess_pipeline = [datasets.MLMDataMasker(
         max_pred=2,
         mask_prob=0.15,
         max_len=model_cfg.max_len,
-        indexer=dataloaders.convert_tokens_to_ids,
+        indexer=datasets.convert_tokens_to_ids,
         token_vocab=range(0,len(food_vectors)-1),
         special_token_ids=special_token_ids
     )]
@@ -70,7 +70,7 @@ def main(train_cfg='./config/train.json',
     cv_ratio = 0.8
     np.random.shuffle(recipes)
     data_train, data_validation = recipes[:int(cv_ratio*len(recipes))], recipes[int(cv_ratio*len(recipes)):]
-    train_ds, validation_dl = dataloaders.MaskedRecipeDataset(data_train, preprocess_pipeline), dataloaders.MaskedRecipeDataset(data_validation, preprocess_pipeline), 
+    train_ds, validation_dl = datasets.MaskedRecipeDataset(data_train, preprocess_pipeline), datasets.MaskedRecipeDataset(data_validation, preprocess_pipeline), 
     train_dl, validation_dl = DataLoader(train_ds, batch_size=train_cfg.batch_size, shuffle=True, num_workers=2), DataLoader(validation_dl, batch_size=train_cfg.batch_size, shuffle=False, num_workers=2)
 
     model = bert.BertModel4Pretrain(model_cfg, food_vectors)

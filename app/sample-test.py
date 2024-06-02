@@ -11,19 +11,19 @@ import torch
 import wandb
 wandb_api = wandb.Api()
 
-from recipe_generator.models.gpt import GPTLanguageModel
-from recipe_generator.config.gpt import GPTConfig
+from recipe_generator.models.ingredient import IngredientModel
+from recipe_generator.models.quantity import QuantityModel
+from recipe_generator.models.samplers import beam_search
+from recipe_generator.utils import load_config
 
-from recipe_generator.models.transformer import IngredientWeightPredictor
-from recipe_generator.config.quantity import IngredientWeightsPredictorCFG
-
-def load_model(model, cfg, embedding_weights, model_weights_artifact):
-    save_file = Path(f"artifacts/{model.__name__}/model.pt")
-    if not save_file.exists(): 
-        wandb_api.artifact(model_weights_artifact).download(save_file.parent)
-    cfg = cfg()
+def load_model(model, embedding_weights, model_weights_artifact, model_config_artifact):
+    save_dir = Path(f"artifacts/{model.__name__}")
+    if not save_dir.exists():
+        wandb_api.artifact(model_weights_artifact).download(save_dir)
+        wandb_api.artifact(model_config_artifact).download(save_dir)
+    cfg = load_config(next(save_dir.glob('*.yaml')))
     model = model(cfg, embedding_weights)
-    model.load_state_dict(torch.load(save_file))
+    model.load_state_dict(torch.load(save_dir/'model.pt'))
     return model
 
 def generate(ingredient_model, quantity_model, initial_recipe=None):
@@ -47,11 +47,14 @@ def generate_and_output():
 
 # args
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-food_embeddings_file='../data/local/final/full/food_embeddings/0.npy'
-special_token_embeddings_file='../data/local/final/full/special_token_embeddings/0.npy'
-foods_file='../data/local/final/full/food_names/0.npy'
-ingredient_model_weights = "stephankostov/recipe-generator-ingredient/model:v23"
-quantity_model_weights = "stephankostov/recipe-generator-quantity-test/model:v89"
+food_embeddings_file='artifacts/food_embeddings.npy'
+special_token_embeddings_file='artifacts/special_token_embeddings.npy'
+foods_file='artifacts/food_names.npy'
+ingredient_model_weights = "stephankostov/recipe-generator-ingredient-v2/model:v28"
+ingredient_model_config = "stephankostov/recipe-generator-ingredient-v2/model_cfg:v0"
+quantity_model_weights = "stephankostov/recipe-generator-quantity-v1/model:v9"
+quantity_model_config = "stephankostov/recipe-generator-quantity-v1/model_cfg:v0"
+
 
 # loading arrays
 embedding_weights = {
@@ -61,9 +64,16 @@ embedding_weights = {
 foods = np.load(foods_file)
 
 # loading models
-ingredient_model = load_model(GPTLanguageModel, GPTConfig, embedding_weights, ingredient_model_weights).to(device).eval()
-quantity_model = load_model(IngredientWeightPredictor, IngredientWeightsPredictorCFG, embedding_weights, quantity_model_weights).to(device).eval()
+ingredient_model = load_model(IngredientModel, embedding_weights, ingredient_model_weights, ingredient_model_config).to(device).eval()
+quantity_model = load_model(QuantityModel, embedding_weights, quantity_model_weights, quantity_model_config).to(device).eval()
 
-samples = generate(ingredient_model, quantity_model)
-results = create_output_df(*samples)
-print(results.to_markdown())
+initial_recipe = torch.ones((5,1), dtype=torch.int, device=device)*3
+samples, _ = beam_search(ingredient_model, initial_recipe, 14)
+samples = samples.detach().cpu()
+print(samples)
+print(foods[samples])
+# ingredient_samples = ingredient_model.generate(initial_recipe, max_new_tokens=14).detach().cpu()
+
+# samples = generate(ingredient_model, quantity_model)
+# results = create_output_df(*samples)
+# print(results.to_markdown())
