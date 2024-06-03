@@ -81,9 +81,10 @@ class MaskedRecipeDataset(Dataset):
     
 class NextTokenDataset(Dataset):
     
-    def __init__(self, recipes, max_len):
+    def __init__(self, recipes, max_len, device=None):
         self.recipes = recipes
         self.max_len = max_len
+        self.device = device if device else 'cpu'
 
     def __len__(self):
         return len(self.recipes) # should be able to have more than one here
@@ -100,18 +101,19 @@ class NextTokenDataset(Dataset):
         recipe = start_token + recipe + end_token + [0]*pad_count
         assert len(recipe) == self.max_len+1, print(recipe, len(recipe), self.max_len+1)
 
-        x = torch.tensor(recipe[:-1])
-        y = torch.tensor(recipe[1:])
-        mask_ids = torch.tensor([1 if food_id != 0 else 0 for food_id in y])
+        x = torch.tensor(recipe[:-1]).to(self.device)
+        y = torch.tensor(recipe[1:]).to(self.device)
+        mask_ids = torch.tensor([1 if food_id != 0 else 0 for food_id in y]).to(self.device)
 
         return x, y, mask_ids
     
 class WeightsDataset(Dataset):
 
-    def __init__(self, recipe_foods, recipe_weights, max_len):
+    def __init__(self, recipe_foods, recipe_weights, max_len, device=None):
         self.recipe_foods = recipe_foods
         self.recipe_weights = recipe_weights
         self.max_len = max_len
+        self.device = device if device else 'cpu'
 
     def __len__(self):
         return len(self.recipe_foods)
@@ -141,11 +143,11 @@ class WeightsDataset(Dataset):
         foods = torch.tensor(foods, dtype=torch.int)
         weights = torch.tensor(weights, dtype=torch.float)
         
-        src = foods
-        tgt = weights[:-1]
-        label = weights[1:]
+        src = foods.to(self.device)
+        tgt = weights[:-1].to(self.device)
+        label = weights[1:].to(self.device)
 
-        mask_ids = torch.ones(label.shape, dtype=torch.float)
+        mask_ids = torch.ones(label.shape, dtype=torch.float).to(self.device)
         mask_ids[pad_idxs[1:]-1] = 0
 
         return (src, tgt), label, mask_ids

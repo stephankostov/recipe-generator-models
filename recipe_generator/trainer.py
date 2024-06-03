@@ -41,7 +41,6 @@ class Trainer():
 
                 if i % self.train_cfg.save_steps == 0:
                     batch = next(iter(self.validation_dl))
-                    batch = [x.to(self.train_cfg.device) if not isinstance(x, list) else [xi.to(self.train_cfg.device) for xi in x] for x in batch]
                     self.validation_loss = self.eval(batch)
                     self.metrics = self.calculate_metrics(train_loss, self.validation_loss, batch)
                     if self.train_cfg.wandb: self.wandb.log(self.metrics, step=self.global_step)
@@ -54,7 +53,6 @@ class Trainer():
 
         self.model.train()
 
-        batch = [x.to(self.train_cfg.device) if not isinstance(x, list) else [xi.to(self.train_cfg.device) for xi in x] for x in batch]
         xb, yb, mask = batch
 
         self.optimiser.zero_grad(set_to_none=True)

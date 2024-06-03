@@ -19,7 +19,7 @@ import torch.nn as nn
 
 import wandb
 
-from recipe_generator.models.ingredient import IngredientModel
+from recipe_generator.models.ingredient_simple import IngredientModelTorch
 import recipe_generator.datasets as datasets
 import recipe_generator.optimiser as optimiser
 from recipe_generator.trainer import Trainer
@@ -49,10 +49,10 @@ def main(recipes_file='../data/local/final/full/recipes/recipe_food_ids.npy',
     cv_ratio = 0.8
     np.random.shuffle(recipes)
     data_train, data_validation = recipes[:int(cv_ratio*len(recipes))], recipes[int(cv_ratio*len(recipes)):]
-    train_ds, validation_ds = datasets.NextTokenDataset(data_train, model_cfg.block_size), datasets.NextTokenDataset(data_validation, model_cfg.block_size), 
+    train_ds, validation_ds = datasets.NextTokenDataset(data_train, model_cfg.block_size, device=train_cfg.device), datasets.NextTokenDataset(data_validation, model_cfg.block_size, device=train_cfg.device), 
     train_dl, validation_dl = DataLoader(train_ds, batch_size=train_cfg.batch_size, shuffle=True, num_workers=2), DataLoader(validation_ds, batch_size=train_cfg.batch_size, shuffle=False, num_workers=2)
 
-    model = IngredientModel(model_cfg, embedding_weights)
+    model = IngredientModelTorch(model_cfg, embedding_weights)
     model.to(train_cfg.device)
 
     if debugger_is_active(): train_cfg.wandb = False

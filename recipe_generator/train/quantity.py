@@ -20,7 +20,7 @@ import torch.nn.functional as F
 
 import wandb
 
-import recipe_generator.models.ingredient as ingredient
+import recipe_generator.models.ingredient_simple as ingredient_simple
 import recipe_generator.datasets as datasets
 import recipe_generator.optimiser as optimiser
 from recipe_generator.loss import MaskedCrossEntropyLoss
@@ -52,7 +52,7 @@ def main(food_embeddings_file='../data/local/final/full/food_embeddings/0.npy',
     shuffle_idx = np.random.permutation(len(recipe_foods))
     recipe_foods, recipe_weights = recipe_foods[shuffle_idx], recipe_weights[shuffle_idx]
     train_idxs, validation_idxs = range(0, round(cv_ratio*len(recipe_foods))), range(round(cv_ratio*len(recipe_foods)), len(recipe_foods))
-    train_ds, validation_ds = datasets.WeightsDataset(recipe_foods[train_idxs], recipe_weights[train_idxs], model_cfg.max_len), datasets.WeightsDataset(recipe_foods[validation_idxs], recipe_weights[validation_idxs], model_cfg.max_len), 
+    train_ds, validation_ds = datasets.WeightsDataset(recipe_foods[train_idxs], recipe_weights[train_idxs], model_cfg.max_len, device=train_cfg.device), datasets.WeightsDataset(recipe_foods[validation_idxs], recipe_weights[validation_idxs], model_cfg.max_len, device=train_cfg.device), 
     train_dl, validation_dl = DataLoader(train_ds, batch_size=train_cfg.batch_size, shuffle=False, num_workers=2), DataLoader(validation_ds, batch_size=train_cfg.batch_size, shuffle=False, num_workers=2)
 
     model = QuantityModel(model_cfg, embedding_weights)
