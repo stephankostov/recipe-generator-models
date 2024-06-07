@@ -57,3 +57,20 @@ def nostdout():
 def debugger_is_active():
     """Return if the debugger is currently active"""
     return hasattr(sys, 'gettrace') and sys.gettrace() is not None
+
+def data_to_device(data, device):
+    """
+    Recursively move tensors to the specified device.
+    Args:
+        data: A tensor or a collection of tensors (nested tuples, lists, dicts).
+        device: The target device (e.g., 'cuda:0').
+    Returns:
+        The same data structure with all tensors moved to the specified device.
+    """
+    if isinstance(data, (list, tuple)):
+        return type(data)(data_to_device(x, device) for x in data)
+    elif isinstance(data, dict):
+        return {k: data_to_device(v, device) for k, v in data.items()}
+    elif isinstance(data, torch.Tensor):
+        return data.to(device)
+    return data

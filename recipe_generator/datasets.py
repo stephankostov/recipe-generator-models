@@ -101,9 +101,9 @@ class NextTokenDataset(Dataset):
         recipe = start_token + recipe + end_token + [0]*pad_count
         assert len(recipe) == self.max_len+1, print(recipe, len(recipe), self.max_len+1)
 
-        x = torch.tensor(recipe[:-1]).to(self.device)
-        y = torch.tensor(recipe[1:]).to(self.device)
-        mask_ids = torch.tensor([1 if food_id != 0 else 0 for food_id in y]).to(self.device)
+        x = torch.tensor(recipe[:-1])
+        y = torch.tensor(recipe[1:])
+        mask_ids = torch.tensor([1 if food_id != 0 else 0 for food_id in y])
 
         return x, y, mask_ids
     
@@ -143,11 +143,10 @@ class WeightsDataset(Dataset):
         foods = torch.tensor(foods, dtype=torch.int)
         weights = torch.tensor(weights, dtype=torch.float)
         
-        src = foods.to(self.device)
-        tgt = weights[:-1].to(self.device)
-        label = weights[1:].to(self.device)
-
-        mask_ids = torch.ones(label.shape, dtype=torch.float).to(self.device)
+        src = foods
+        tgt = weights[:-1]
+        label = weights[1:]
+        mask_ids = torch.ones(label.shape, dtype=torch.float)
         mask_ids[pad_idxs[1:]-1] = 0
 
         return (src, tgt), label, mask_ids
