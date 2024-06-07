@@ -5,4 +5,4 @@ n_epochs: 10
 save_steps: 50
 max_steps: 1.0e+9
 device: "cuda"
-wandb: true
+wandb: false
