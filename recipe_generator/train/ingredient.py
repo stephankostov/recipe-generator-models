@@ -19,7 +19,7 @@ import torch.nn as nn
 
 import wandb
 
-from recipe_generator.models.ingredient_simple import IngredientModel
+from recipe_generator.models.ingredient import IngredientModel
 import recipe_generator.datasets as datasets
 import recipe_generator.optimiser as optimiser
 from recipe_generator.trainer import Trainer

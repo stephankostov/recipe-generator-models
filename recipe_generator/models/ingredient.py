@@ -1,5 +1,5 @@
 """
-Taken from Andrej Karpathy's code: https://github.com/karpathy/nanoGPT/blob/master/model.py
+Adapted from Andrej Karpathy's code: https://github.com/karpathy/nanoGPT/blob/master/model.py
 Full definition of a GPT Language Model
 """
 
@@ -147,9 +147,7 @@ class IngredientModel(nn.Module):
     def get_num_params(self, non_embedding=True):
         """
         Return the number of parameters in the model.
-        For non-embedding count (default), the position embeddings get subtracted.
-        The token embeddings would too, except due to the parameter sharing these
-        params are actually used as weights in the final layer, so we include them.
+        Since the molecular embeddings are not learned we subtract these from the count.
         """
         n_params = sum(p.numel() for p in self.parameters())
         if non_embedding:
