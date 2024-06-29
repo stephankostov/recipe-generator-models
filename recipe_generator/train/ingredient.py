@@ -58,7 +58,7 @@ def main(recipes_file='../data/local/final/full/recipes/recipe_food_ids.npy',
     if debugger_is_active(): train_cfg.wandb = False
     if train_cfg.wandb: 
         wandb.init(
-            project='recipe-generator-ingredient-v2',
+            project='recipe-generator-ingredient-public',
             config={ **model_cfg.to_dict(), **train_cfg.to_dict(), 'loss_note': 'ce_loss' }
         )
         wandb.watch(model, log_freq=train_cfg.save_steps)

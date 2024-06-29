@@ -29,10 +29,10 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 food_embeddings_file='artifacts/food_embeddings.npy'
 special_token_embeddings_file='artifacts/special_token_embeddings.npy'
 foods_file='artifacts/food_names.npy'
-ingredient_model_weights = "stephankostov/recipe-generator-ingredient-v2/model:v28"
-ingredient_model_config = "stephankostov/recipe-generator-ingredient-v2/model_cfg:v0"
-quantity_model_weights = "stephankostov/recipe-generator-quantity-v1/model:v9"
-quantity_model_config = "stephankostov/recipe-generator-quantity-v1/model_cfg:v0"
+ingredient_model_weights = "stephankostov/recipe-generator-ingredient-public/model:v28"
+ingredient_model_config = "stephankostov/recipe-generator-ingredient-public/model_cfg:v0"
+quantity_model_weights = "stephankostov/recipe-generator-quantity-public/model:v9"
+quantity_model_config = "stephankostov/recipe-generator-quantity-public/model_cfg:v0"
 
 @st.cache_resource
 def wandb_login():

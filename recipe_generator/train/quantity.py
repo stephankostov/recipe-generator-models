@@ -20,7 +20,6 @@ import torch.nn.functional as F
 
 import wandb
 
-import recipe_generator.models.ingredient_simple as ingredient_simple
 import recipe_generator.datasets as datasets
 import recipe_generator.optimiser as optimiser
 from recipe_generator.loss import MaskedCrossEntropyLoss
@@ -60,7 +59,7 @@ def main(food_embeddings_file='../data/local/final/full/food_embeddings/0.npy',
 
     if train_cfg.wandb: 
         wandb.init(
-            project='recipe-generator-quantity-v1',
+            project='recipe-generator-quantity-public',
             config={ **model_cfg.to_dict(), **train_cfg.to_dict(), 'loss_note': 'ce_loss' }
         )
         wandb.watch(model, log_freq=train_cfg.save_steps)
