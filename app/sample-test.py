@@ -44,7 +44,6 @@ def generate_and_output():
     results = create_output_df(*samples)
     st.session_state.recipe = results
 
-
 # args
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 food_embeddings_file='artifacts/food_embeddings.npy'

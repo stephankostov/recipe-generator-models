@@ -3,7 +3,7 @@ import pickle
 
 import torch
 
-from recipe_generator.utils import nostdout
+from recipe_generator.utils import nostdout, data_to_device
 
 class Trainer():
 
@@ -24,6 +24,7 @@ class Trainer():
         self.metrics = {}
         self.early_stopper = EarlyStopping()
         self.validation_loss = float('inf')
+        self.device = train_cfg.device
         # self.model_artifact = self.wandb.Artifact('model', type='model') if self.wandb else None
 
     def train(self):
@@ -36,12 +37,13 @@ class Trainer():
 
             for i, batch in enumerate(tqdm(self.train_dl)):
 
+                batch = data_to_device(batch, self.device)
                 train_loss = self.step(batch)
                 self.global_step += 1
 
                 if i % self.train_cfg.save_steps == 0:
                     batch = next(iter(self.validation_dl))
-                    batch = [x.to(self.train_cfg.device) if not isinstance(x, list) else [xi.to(self.train_cfg.device) for xi in x] for x in batch]
+                    batch = data_to_device(batch, self.device)
                     self.validation_loss = self.eval(batch)
                     self.metrics = self.calculate_metrics(train_loss, self.validation_loss, batch)
                     if self.train_cfg.wandb: self.wandb.log(self.metrics, step=self.global_step)
@@ -54,7 +56,6 @@ class Trainer():
 
         self.model.train()
 
-        batch = [x.to(self.train_cfg.device) if not isinstance(x, list) else [xi.to(self.train_cfg.device) for xi in x] for x in batch]
         xb, yb, mask = batch
 
         self.optimiser.zero_grad(set_to_none=True)
@@ -72,7 +73,6 @@ class Trainer():
 
         with torch.no_grad():
 
-            batch = [x.to(self.train_cfg.device) if not isinstance(x, list) else [xi.to(self.train_cfg.device) for xi in x] for x in batch]
             xb, yb, mask = batch
 
             self.model_output = self.model(xb)
