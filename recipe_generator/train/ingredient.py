@@ -50,7 +50,7 @@ def main(recipes_file='../data/local/final/full/recipes/recipe_food_ids.npy',
     np.random.shuffle(recipes)
     data_train, data_validation = recipes[:int(cv_ratio*len(recipes))], recipes[int(cv_ratio*len(recipes)):]
     train_ds, validation_ds = datasets.NextTokenDataset(data_train, model_cfg.block_size, device=train_cfg.device), datasets.NextTokenDataset(data_validation, model_cfg.block_size, device=train_cfg.device), 
-    train_dl, validation_dl = DataLoader(train_ds, batch_size=train_cfg.batch_size, shuffle=True), DataLoader(validation_ds, batch_size=train_cfg.batch_size, shuffle=False)
+    train_dl, validation_dl = DataLoader(train_ds, batch_size=train_cfg.batch_size, shuffle=True, num_workers=4), DataLoader(validation_ds, batch_size=train_cfg.batch_size, shuffle=False, num_workers=4)
 
     model = IngredientModel(model_cfg, embedding_weights)
     model.to(train_cfg.device)

@@ -2,7 +2,7 @@ block_size:  15
 vocab_size: 1111
 n_embd: 400
 n_layer: 2
-n_head:  4
+n_head:  2
 dropout: 0.1
 bias: true
 pos_embeds: false
